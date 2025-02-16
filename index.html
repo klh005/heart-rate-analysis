@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Heart Rate Visualization</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="container header-container">
+      <h1>Heart Rate Across Movements</h1>
+      <nav>
+        <ul>
+          <li><a href="#visualization">Visualization</a></li>
+          <li><a href="#writeup">Write-Up</a></li>
+        </ul>
+      </nav>
+      <button id="toggle-theme" aria-label="Toggle Light/Dark Mode">Toggle Theme</button>
+    </div>
+  </header>
+  
+  <main>
+    <section id="visualization" class="section">
+      <div class="container">
+        <h2>Interactive Visualization</h2>
+        <!-- D3 visualization container -->
+        <div id="viz-container"></div>
+      </div>
+    </section>
+
+    <section id="writeup" class="section">
+      <div class="container">
+        <h2>Project Write-Up</h2>
+        <p>
+          <strong>Rationale:</strong> This visualization explores variations in heart rate across four distinct movements. The visual encodings were chosen to provide clarity and to support interactive exploration—allowing users to zoom, pan, and obtain details on demand.
+        </p>
+        <p>
+          <strong>Development Process:</strong> Developed using HTML, CSS, and JavaScript with D3.js for data visualization. The project was a collaborative effort, with approximately 30 person-hours dedicated to design, prototyping, and refining interactions.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2025 Heart Rate Visualization Project</p>
+    </div>
+  </footer>
+  
+  <!-- Include D3.js from CDN -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="global.js"></script>
+</body>
+</html>
