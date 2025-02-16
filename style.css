@@ -1,4 +1,4 @@
-/* CSS Reset for consistency */
+/* CSS Reset */
 * {
   margin: 0;
   padding: 0;
@@ -92,15 +92,38 @@ nav a:hover {
   padding: 2rem 0;
 }
 
+/* Visualization layout */
 #viz-container {
-  width: 100%;
-  height: 500px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background-color: var(--background-color);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
-/* Tooltip styling */
+#plot {
+  flex: 1;
+  min-width: 300px;
+  /* Ensure the SVG has a defined width by giving the container a min-height */
+  min-height: 500px;
+}
+
+#legend {
+  width: 200px;
+  background-color: var(--header-background);
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+#legend h3 {
+  margin-bottom: 0.5rem;
+}
+
+#legend label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* Tooltip styling (if needed later) */
 .tooltip {
   font-size: 0.9rem;
   box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.2);
@@ -126,5 +149,13 @@ footer {
   nav ul {
     flex-direction: column;
     margin-top: 1rem;
+  }
+  
+  #viz-container {
+    flex-direction: column;
+  }
+  
+  #legend {
+    width: 100%;
   }
 }

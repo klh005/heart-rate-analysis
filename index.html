@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Heart Rate Visualization</title>
+  <title>Heart Rate Analysis</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
     <div class="container header-container">
-      <h1>Heart Rate Across Movements</h1>
+      <h1>Heart Rate Analysis</h1>
       <nav>
         <ul>
           <li><a href="#visualization">Visualization</a></li>
@@ -23,9 +23,25 @@
   <main>
     <section id="visualization" class="section">
       <div class="container">
-        <h2>Interactive Visualization</h2>
-        <!-- D3 visualization container -->
-        <div id="viz-container"></div>
+        <h2>Interactive Scatter Plot</h2>
+        <p>
+          All data points are plotted as gray dots by default. Use the legends at right to “color‑in” points by activity (Running, Rest, 2‑Back) and to toggle which measure’s points are visible.
+        </p>
+        <div id="viz-container">
+          <!-- Plot will be appended into #plot -->
+          <div id="plot"></div>
+          <!-- Legend panel -->
+          <div id="legend">
+            <h3>Activity Colors</h3>
+            <label><input type="checkbox" class="activity-checkbox" value="Running"> Running</label>
+            <label><input type="checkbox" class="activity-checkbox" value="Rest"> Rest</label>
+            <label><input type="checkbox" class="activity-checkbox" value="2-Back"> 2‑Back</label>
+            <hr/>
+            <h3>Measures</h3>
+            <label><input type="checkbox" class="measure-checkbox" value="heart_rate" checked> Heart Rate</label>
+            <label><input type="checkbox" class="measure-checkbox" value="breathing_rate" checked> Breathing Rate</label>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -33,10 +49,10 @@
       <div class="container">
         <h2>Project Write-Up</h2>
         <p>
-          <strong>Rationale:</strong> This visualization explores variations in heart rate across four distinct movements. The visual encodings were chosen to provide clarity and to support interactive exploration—allowing users to zoom, pan, and obtain details on demand.
+          <strong>Rationale:</strong> This visualization explores how heart rate and respiratory (breathing) rate respond under physical (Running) and cognitive (2‑Back) load compared to Rest. We chose a scatter plot so that each data point is represented individually; by default they appear in gray to avoid visual clutter. Interaction via legends (checkboxes) enables users to “highlight” data points for each activity and selectively view heart rate or breathing rate.
         </p>
         <p>
-          <strong>Development Process:</strong> Developed using HTML, CSS, and JavaScript with D3.js for data visualization. The project was a collaborative effort, with approximately 30 person-hours dedicated to design, prototyping, and refining interactions.
+          <strong>Development Process:</strong> The project was developed using HTML, CSS, and JavaScript with D3.js as the only plotting library. The work was divided between data processing, layout design, and interactivity, and took roughly 30 person‑hours to complete.
         </p>
       </div>
     </section>
@@ -44,7 +60,7 @@
 
   <footer>
     <div class="container">
-      <p>&copy; 2025 Heart Rate Visualization Project</p>
+      <p>&copy; 2025 Heart Rate Analysis Project</p>
     </div>
   </footer>
   
