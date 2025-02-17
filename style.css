@@ -16,7 +16,7 @@
   --button-color: #ffffff;
 }
 
-/* Dark mode variables */
+/* Dark mode variables (triggered by .dark on <body>) */
 body.dark {
   --background-color: #121212;
   --text-color: #e0e0e0;
@@ -42,6 +42,7 @@ body {
   padding: 1rem;
 }
 
+/* Header */
 header {
   background-color: var(--header-background);
   padding: 1rem 0;
@@ -102,8 +103,8 @@ nav a:hover {
 #plot {
   flex: 1;
   min-width: 300px;
-  /* Ensure the SVG has a defined width by giving the container a min-height */
-  min-height: 500px;
+  min-height: 500px; /* ensures there's enough space for the chart */
+  position: relative; /* for tooltip positioning within this container */
 }
 
 #legend {
@@ -112,6 +113,7 @@ nav a:hover {
   padding: 1rem;
   border: 1px solid #ccc;
   border-radius: 4px;
+  transition: background-color 0.3s ease;
 }
 
 #legend h3 {
@@ -123,11 +125,26 @@ nav a:hover {
   margin-bottom: 0.5rem;
 }
 
-/* Tooltip styling (if needed later) */
+/* Tooltip styling */
 .tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: #fff;
+  color: #333;
+  padding: 0.5rem;
+  border-radius: 4px;
   font-size: 0.9rem;
-  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.2);
+  border: 1px solid #ccc;
+  opacity: 0;
+  transition: opacity 0.2s ease;
   z-index: 10;
+}
+
+/* highlight class for hovered dot */
+.highlight {
+  stroke: #000;
+  stroke-width: 1.5;
+  opacity: 1 !important;
 }
 
 /* Footer */
@@ -139,7 +156,6 @@ footer {
   transition: background-color 0.3s ease;
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
   .header-container {
     flex-direction: column;
