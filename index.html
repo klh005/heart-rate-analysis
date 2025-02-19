@@ -19,55 +19,64 @@
         <button id="toggle-theme" aria-label="Toggle Light/Dark Mode">Toggle Theme</button>
       </div>
     </header>
-    
+
     <main>
       <section id="visualization" class="section">
         <div class="container flex-container">
           <div id="viz-container">
             <div id="plot"></div>
           </div>
-          <div id="legend">
-            <h3>Activity Colors</h3>
-            <label><input type="checkbox" class="activity-checkbox" value="Running" checked> Running</label>
-            <label><input type="checkbox" class="activity-checkbox" value="Rest" checked> Rest</label>
-            <label><input type="checkbox" class="activity-checkbox" value="2-Back" checked> 2‑Back</label>
-            <label><input type="checkbox" class="activity-checkbox" value="Walking" checked> Walking</label>
-            <hr/>
-            <h3>Measures</h3>
-            <label><input type="checkbox" class="measure-checkbox" value="heart_rate" checked> Heart Rate</label>
-            <label><input type="checkbox" class="measure-checkbox" value="breathing_rate" checked> Breathing Rate</label>
-          </div>          
         </div>
-        <!-- Place the heart button below the flex container so it appears clearly -->
-        <button id="heart-button" aria-label="Continue"><span>❤</span></button>
+        <section id="narrative" class="section">
+          <div class="container">
+            <!-- Narrative text injected by global.js -->
+          </div>
+        </section>
+        <div class="controls">
+          <!-- Heart button remains visible throughout interactive mode -->
+          <button id="heart-button" aria-label="Continue"><span>❤</span></button>
+          <!-- Slider and its label will be hidden until interactive mode -->
+          <label id="slider-label" for="points-slider">Points to add: <span id="slider-value">0</span></label>
+          <input type="range" id="points-slider" min="-100" max="100" step="10" value="0">
+          <button id="skip-button">Skip Animation</button>
+        </div>
+        <!-- Place the legend toggle button above the legend -->
+        <button id="legend-toggle" aria-label="Toggle Legend">Hide Legend</button>
+        <div id="legend">
+          <h3>Activity Colors</h3>
+          <label><input type="checkbox" class="activity-checkbox" value="Running" checked> Running</label>
+          <label><input type="checkbox" class="activity-checkbox" value="Rest" checked> Rest</label>
+          <label><input type="checkbox" class="activity-checkbox" value="2-Back" checked> 2‑Back</label>
+          <label><input type="checkbox" class="activity-checkbox" value="Walking" checked> Walking</label>
+          <hr />
+          <h3>Measures</h3>
+          <label><input type="checkbox" class="measure-checkbox" value="heart_rate" checked> Heart Rate</label>
+          <label><input type="checkbox" class="measure-checkbox" value="breathing_rate" checked> Breathing Rate</label>
+        </div>
       </section>
-  
-      <!-- Narrative container -->
-      <section id="narrative" class="section">
-        <div class="container"></div>
-      </section>
-  
+
+      <!-- Writeup Section -->
       <section id="writeup" class="section">
         <div class="container">
           <h2>Project Write-Up</h2>
           <p>
-            <strong>Rationale:</strong> This visualization uses a click-to-continue narrative (via a heart button) to guide the user through a series of animations. After the final click, the chart becomes fully interactive with tooltips, zoom/pan, and legend queries available.
+            <strong>Rationale:</strong> This visualization uses a click-to-continue narrative (driven by a red heart button) that “pumps” data points onto the graph. A slider lets you adjust how many points are added per click, and a toggleable legend on the right controls query filtering. A skip button lets you jump directly to interactive mode.
           </p>
           <p>
-            <strong>Development Process:</strong> Built solely with D3.js and vanilla JavaScript, the project demonstrates how to layer animations and interactions over a data visualization.
+            <strong>Development Process:</strong> Built solely with D3.js and vanilla JavaScript, this project demonstrates how to layer animations and interactive query controls over a data visualization.
           </p>
         </div>
       </section>
     </main>
-  
+
     <footer>
       <div class="container">
         <p>&copy; 2025 Heart Rate Analysis Project</p>
       </div>
     </footer>
-    
+
     <!-- Include D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="global.js"></script>
-  </body>  
+  </body>
 </html>
