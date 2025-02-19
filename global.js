@@ -45,8 +45,9 @@ document.addEventListener("DOMContentLoaded", () => {
     "2": "Step 2: Now the points separate by measure: heart rate turns red and respiratory rate turns blue.",
     "3": "Step 3: The respiratory (blue) points are hidden, leaving only heart rate visible.",
     "4": "Step 4: Heart rate points for Rest are highlighted.",
-    "5": "Step 5: Next, cognitive load (2‑Back) and physical load (Running) are revealed with their own colors.",
-    "6": "Step 6: The chart is now fully interactive! Both heart rate and respiratory points are visible. Use the legend on the right to toggle query options."
+    "5": "Step 5: Next, cognitive load (2-Back) and physical load (Running) are revealed with their own colors.",
+    "6": "Step 6: Regression lines for heart rate data are added to show the trends for each activity's heart rate data.",
+    "7": "Step 7: The chart is now fully interactive! Both heart rate and respiratory points are visible. Use the legend on the right to toggle query options."
   };
 
   // --- Data Loading & Combination ---
@@ -265,7 +266,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // --- Narrative & Heart Button (Click-to-Continue) Setup ---
       // Initialize currentStep at 0 so that the first click increments it to 1.
       let currentStep = 0;
-      const totalSteps = 6;
+      const totalSteps = 7;
       let interactiveActive = false; // becomes true at step 6.
       let clickEnabled = true; // prevents rapid clicks
 
@@ -332,7 +333,36 @@ document.addEventListener("DOMContentLoaded", () => {
               .on("end", () => { updateNarrative(step); });
             break;
           case 6:
-            // Step 6: Final interactive mode.
+            // Step 6: Show regression lines for heart rate data
+            points.filter(d => d.measure === "heart_rate")
+              .transition().duration(1000)
+              .attr("fill", d => activityColors[d.activity] || "gray")
+              .attr("opacity", 0.8);
+
+            Object.keys(regressionData.heart_rate).forEach(activity => {
+              const lineData = regressionData.heart_rate[activity];
+
+              chartArea.append("path")
+                .datum(lineData)
+                .attr("class", "regression-line")
+                .attr("fill", "none")
+                .attr("stroke", activityColors[activity])
+                .attr("stroke-width", 2)
+                .attr("opacity", 0)
+                .attr("d", d3.line()
+                  .x(d => xScale(d.timestamp))
+                  .y(d => yScale(d.predicted))
+                )
+                .transition()
+                .duration(1000)
+                .attr("opacity", 1)
+                .on("end", () => { updateNarrative(step); });
+            });
+
+            updateNarrative(step);
+            break;
+          case 7:
+            // Step 7: Final interactive mode.
             // Bring respiratory (breathing_rate) points back (opacity to 0.8) and restore colors using shared activity mapping.
             points.transition().duration(1000)
               .attr("fill", d => activityColors[d.activity] || "gray")
@@ -401,6 +431,18 @@ document.addEventListener("DOMContentLoaded", () => {
           points.attr("fill", d => {
             const checkbox = document.querySelector(`.activity-checkbox[value="${d.activity}"]`);
             return (checkbox && checkbox.checked) ? (activityColors[d.activity] || "gray") : "gray";
+          });
+
+          // Update all regression lines color
+          ['heart_rate', 'breathing_rate'].forEach(measure => {
+            regressionGroups[measure].selectAll(".regression-line").each(function () {
+              const activity = this.classList[1]; // Get activity from class name
+              const checkbox = document.querySelector(`.activity-checkbox[value="${activity}"]`);
+              d3.select(this)
+                .transition()
+                .duration(750)
+                .attr("stroke", (checkbox && checkbox.checked) ? activityColors[activity] : "gray");
+            });
           });
         }
       });
@@ -512,9 +554,22 @@ document.addEventListener("DOMContentLoaded", () => {
         // Jump to final state
         points
           .classed("non-interactive", false)
-          .attr("fill", d => activityColors[d.activity] || "gray")
+          .attr("fill", d => {
+            const checkbox = document.querySelector(`.activity-checkbox[value="${d.activity}"]`);
+            return (checkbox && checkbox.checked) ? (activityColors[d.activity] || "gray") : "gray";
+          })
           .attr("opacity", 0.8)
           .attr("display", null);
+
+        // Update regression lines color
+        ['heart_rate', 'breathing_rate'].forEach(measure => {
+          regressionGroups[measure].selectAll(".regression-line").each(function () {
+            const activity = this.classList[1]; // Get activity from class name
+            const checkbox = document.querySelector(`.activity-checkbox[value="${activity}"]`);
+            d3.select(this)
+              .attr("stroke", (checkbox && checkbox.checked) ? activityColors[activity] : "gray");
+          });
+        });
 
         // Activate zoom/pan
         svg.call(zoomBehavior);
@@ -571,7 +626,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .attr("class", `regression-line ${activity}`)
             .attr("d", line)
             .attr("fill", "none")
-            .attr("stroke", activityColors[activity])
+            .attr("stroke", "gray")
             .attr("stroke-width", 2)
             .attr("opacity", 0.8);
         });
