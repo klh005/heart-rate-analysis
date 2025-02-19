@@ -16,7 +16,7 @@
   --button-color: #ffffff;
 }
 
-/* Dark mode variables (triggered by .dark on <body>) */
+/* Dark mode variables */
 body.dark {
   --background-color: #121212;
   --text-color: #e0e0e0;
@@ -107,9 +107,7 @@ nav a:hover {
   flex: 1;
   min-width: 300px;
   min-height: 500px;
-  /* ensures enough space for the chart */
   position: relative;
-  /* for tooltip positioning */
 }
 
 #plot {
@@ -118,7 +116,7 @@ nav a:hover {
   position: relative;
 }
 
-/* Legend styling - Fixed to the right side of the screen */
+/* Legend styling - fixed to the right */
 #legend {
   position: fixed;
   top: 50%;
@@ -130,7 +128,7 @@ nav a:hover {
   border: 1px solid #ccc;
   border-radius: 4px;
   z-index: 9999;
-  /* high z-index ensures it stays on top and is interactable */
+  transition: transform 0.3s ease;
 }
 
 #legend h3 {
@@ -140,6 +138,31 @@ nav a:hover {
 #legend label {
   display: block;
   margin-bottom: 0.5rem;
+}
+
+/* Legend Toggle Button - positioned above the legend */
+#legend-toggle {
+  position: fixed;
+  top: calc(50% - 200px);
+  right: 20px;
+  z-index: 10000;
+  background-color: var(--button-background);
+  color: var(--button-color);
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+/* Axis Labels */
+.x-axis-label {
+  font-size: 1rem;
+  fill: var(--text-color);
+}
+.y-axis-label {
+  font-size: 1rem;
+  fill: var(--text-color);
 }
 
 /* Tooltip styling */
@@ -157,7 +180,7 @@ nav a:hover {
   z-index: 10;
 }
 
-/* Highlight class for hovered points */
+/* Highlight for points */
 .highlight {
   stroke: #000;
   stroke-width: 1.5;
@@ -179,17 +202,13 @@ footer {
     flex-direction: column;
     align-items: flex-start;
   }
-
   nav ul {
     flex-direction: column;
     margin-top: 1rem;
   }
-
   .flex-container {
     flex-direction: column;
   }
-
-  /* On smaller screens, fix the legend at the bottom right */
   #legend {
     position: fixed;
     bottom: 20px;
@@ -199,69 +218,21 @@ footer {
     width: 90%;
     max-width: 300px;
   }
+  #legend-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    top: auto;
+  }
 }
 
-/* Non-interactive elements */
-.non-interactive {
-  pointer-events: none;
-}
-
-/* Narrative text container styling */
+/* Narrative text styling */
 #narrative {
   text-align: center;
   font-size: 1.1rem;
 }
 
-/* Heart Button Styling */
-#heart-button {
-  display: block;
-  /* ensure it is visible when shown by JS */
-  margin: 1rem auto;
-  /* centered horizontally */
-  width: 100px;
-  height: 100px;
-  background-color: #ff0000;
-  /* bright red */
-  border: none;
-  border-radius: 50%;
-  font-size: 4rem;
-  color: #fff;
-  cursor: pointer;
-  z-index: 100;
-  transition: transform 0.2s ease;
-}
-
-/* Heart Beat & Shrink Animation */
-@keyframes heartBeatShrink {
-  0% {
-    transform: scale(1);
-  }
-
-  30% {
-    transform: scale(1.2);
-  }
-
-  50% {
-    transform: scale(0);
-  }
-
-  70% {
-    transform: scale(0);
-  }
-
-  90% {
-    transform: scale(1.2);
-  }
-
-  100% {
-    transform: scale(1);
-  }
-}
-
-#heart-button.beat {
-  animation: heartBeatShrink 0.6s;
-}
-
+/* Button/Controls styling */
 .button-container {
   display: flex;
   flex-direction: column;
@@ -270,7 +241,19 @@ footer {
   gap: 1rem;
   margin: 1rem auto;
 }
+#points-slider {
+  width: 200px;
+  margin-left: 10px;
+}
 
+/* Initially hide slider, its label, & legend toggle until interactive mode */
+#points-slider,
+#slider-label,
+#legend-toggle {
+  display: none;
+}
+
+/* Skip Button Styling */
 #skip-button {
   padding: 0.5rem 1rem;
   background-color: var(--background-color);
@@ -278,10 +261,39 @@ footer {
   color: var(--text-color);
   cursor: pointer;
   border-radius: 4px;
-  width: 100pt;
+  width: 100px;
+  margin: 0.5rem auto;
+  display: block;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
-
 #skip-button:hover {
   background-color: var(--accent-color);
   color: var(--background-color);
+}
+
+/* Heart Button Styling */
+#heart-button {
+  display: block;
+  margin: 1rem auto;
+  width: 100px;
+  height: 100px;
+  background-color: #ff0000;
+  border: none;
+  border-radius: 50%;
+  font-size: 4rem;
+  color: #fff;
+  cursor: pointer;
+  z-index: 100;
+  transition: transform 0.2s ease;
+}
+@keyframes heartBeatShrink {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.2); }
+  50% { transform: scale(0); }
+  70% { transform: scale(0); }
+  90% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+#heart-button.beat {
+  animation: heartBeatShrink 0.6s;
 }
