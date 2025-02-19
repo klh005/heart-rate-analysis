@@ -186,7 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("fill", "gray")
         .attr("stroke", "none")
         .attr("opacity", 0.8)
-        .on("mouseover", function(event, d) {
+        .on("mouseover", function (event, d) {
           if (!interactiveActive) return;
           d3.select(this).classed("highlight", true);
           if (!tooltip) return;
@@ -198,14 +198,14 @@ document.addEventListener("DOMContentLoaded", () => {
             <strong>Time:</strong> ${d.timestamp.toFixed(1)} s
           `;
         })
-        .on("mousemove", function(event, d) {
+        .on("mousemove", function (event, d) {
           if (!interactiveActive) return;
           if (!tooltip) return;
           const [mx, my] = d3.pointer(event, plotContainer);
           tooltip.style.left = (mx + 15) + "px";
           tooltip.style.top = (my - 10) + "px";
         })
-        .on("mouseout", function() {
+        .on("mouseout", function () {
           if (!interactiveActive) return;
           d3.select(this).classed("highlight", false);
           if (tooltip) tooltip.style.opacity = 0;
@@ -332,11 +332,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       // --- Legend Interactions ---
-      // Activity checkboxes: both heart_rate and breathing_rate points use the same mapping.
-      d3.selectAll(".activity-checkbox").on("change", function() {
+      // Activity checkboxes: control display and color of points
+      d3.selectAll(".activity-checkbox").on("change", function () {
         if (interactiveActive) {
           const activity = this.value;
-          // Update the label's background color.
+          // Update the label's background color
           const label = this.parentElement;
           if (this.checked) {
             label.style.backgroundColor = activityColors[activity];
@@ -345,21 +345,115 @@ document.addEventListener("DOMContentLoaded", () => {
             label.style.backgroundColor = "";
             label.style.color = "";
           }
+
+          // Update points color
           points.attr("fill", d => {
             const checkbox = document.querySelector(`.activity-checkbox[value="${d.activity}"]`);
             return (checkbox && checkbox.checked) ? (activityColors[d.activity] || "gray") : "gray";
           });
         }
       });
-      // Measure checkboxes: control display of points based on measure.
+
+      // Measure checkboxes: control display of points based on measure and update y-axis
       d3.selectAll(".measure-checkbox").on("change", () => {
         if (interactiveActive) {
+          // Update point visibility
           points.attr("display", d => {
             const checkbox = document.querySelector(`.measure-checkbox[value="${d.measure}"]`);
             return (checkbox && checkbox.checked) ? null : "none";
           });
+
+          // Get visible points based on checked measures
+          const visiblePoints = combinedData.filter(d => {
+            const checkbox = document.querySelector(`.measure-checkbox[value="${d.measure}"]`);
+            return checkbox && checkbox.checked;
+          });
+
+          // Calculate new y-axis extent based on visible points
+          const newYExtent = d3.extent(visiblePoints, d => d.value);
+
+          // Set y-axis range based on visible measures
+          const hrChecked = document.querySelector('.measure-checkbox[value="heart_rate"]').checked;
+          const brChecked = document.querySelector('.measure-checkbox[value="breathing_rate"]').checked;
+
+          let yMin, yMax;
+          if (brChecked && !hrChecked) {
+            // Only breathing rate visible
+            yMin = 0;
+            yMax = 60;
+          } else if (hrChecked && !brChecked) {
+            // Only heart rate visible
+            yMin = 0;
+            yMax = 200;
+          } else if (hrChecked && brChecked) {
+            // Both measures visible
+            yMin = 0;
+            yMax = 200;
+          } else {
+            // Neither checked (shouldn't happen in normal use)
+            yMin = newYExtent[0] - 5;
+            yMax = newYExtent[1] + 5;
+          }
+
+          // Update y scale
+          yScale.domain([yMin, yMax]).nice();
+
+          // Update points position
+          points.transition()
+            .duration(750)
+            .attr("transform", d => {
+              const tx = xScale(d.timestamp);
+              const ty = yScale(d.value);
+              return `translate(${tx},${ty})`;
+            });
+
+          // Update y-axis with animation
+          chartArea.select(".y-axis")
+            .transition()
+            .duration(750)
+            .call(yAxis);
         }
       });
+
+      // --- Skip Animation Function ---
+      function skipToInteractive() {
+        // Reset any ongoing transitions
+        points.interrupt();
+        chartArea.selectAll(".y-axis").interrupt();
+
+        // Jump to final state
+        points
+          .classed("non-interactive", false)
+          .attr("fill", d => activityColors[d.activity] || "gray")
+          .attr("opacity", 0.8)
+          .attr("display", null);
+
+        // Activate zoom/pan
+        svg.call(zoomBehavior);
+        interactiveActive = true;
+
+        // Show legend
+        if (legendContainer) {
+          legendContainer.style.display = "block";
+        }
+
+        // Hide narrative and buttons
+        if (narrativeContainer) {
+          narrativeContainer.innerHTML = `<p>${stepsText[6]}</p>`;
+        }
+        if (heartButton) {
+          heartButton.style.display = "none";
+        }
+
+        // Update current step
+        currentStep = totalSteps;
+      }
+
+      // --- Skip Button Click Handler ---
+      const skipButton = document.getElementById("skip-button");
+      if (skipButton) {
+        skipButton.addEventListener("click", skipToInteractive);
+      }
 
     })
     .catch(error => {
