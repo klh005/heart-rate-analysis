@@ -58,11 +58,31 @@ document.addEventListener("DOMContentLoaded", () => {
     "data/sampled_Walking.csv"
   ];
 
-  Promise.all(dataPaths.map(path => d3.csv(path)))
+  // Add regression data paths to Promise.all
+  const regressionPaths = [
+    "data/regression_2-Back_heart.csv",
+    "data/regression_Rest_heart.csv",
+    "data/regression_Running_heart.csv",
+    "data/regression_Walking_heart.csv",
+    "data/regression_2-Back_breathing.csv",
+    "data/regression_Rest_breathing.csv",
+    "data/regression_Running_breathing.csv",
+    "data/regression_Walking_breathing.csv"
+  ];
+
+  Promise.all([
+    ...dataPaths.map(path => d3.csv(path)),
+    ...regressionPaths.map(path => d3.csv(path))
+  ])
     .then(files => {
-      // Combine CSV files into one dataset, using only the first 100 rows of each.
+      // First 4 files are original data
+      const dataFiles = files.slice(0, 4);
+      // Last 8 files are regression data (4 heart + 4 breathing)
+      const regressionFiles = files.slice(4);
+
+      // Process original data
       let combinedData = [];
-      files.forEach(dataArray => {
+      dataFiles.forEach(dataArray => {
         dataArray.slice(0, 100).forEach(d => {
           const timestamp = +d.timestamp;
           const heartRate = +d.heart_rate;
@@ -89,6 +109,24 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       });
       console.log("Combined data points:", combinedData.length);
+
+      // Process regression data
+      const regressionData = {
+        heart_rate: {},
+        breathing_rate: {}
+      };
+
+      regressionFiles.forEach((data, index) => {
+        const pathParts = regressionPaths[index].split('_');
+        const activity = pathParts[1];
+        const measure = pathParts[2].split('.')[0]; // 'heart' or 'breathing'
+        const measureKey = measure === 'heart' ? 'heart_rate' : 'breathing_rate';
+
+        regressionData[measureKey][activity] = data.map(d => ({
+          timestamp: +d.timestamp,
+          predicted: measure === 'heart' ? +d.predicted_heart_rate : +d.predicted_breathing_rate
+        })).filter(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+      });
 
       // --- Set up SVG Dimensions ---
       const margin = { top: 20, right: 20, bottom: 40, left: 60 };
@@ -140,15 +178,28 @@ document.addEventListener("DOMContentLoaded", () => {
           const transform = event.transform;
           const newXScale = transform.rescaleX(xScale);
           const newYScale = transform.rescaleY(yScale);
+
+          // Update data points
           points.attr("transform", d => {
             const tx = newXScale(d.timestamp);
             const ty = newYScale(d.value);
             return `translate(${tx},${ty})`;
           });
-          chartArea.select(".x-axis")
-            .call(xAxis.scale(newXScale));
-          chartArea.select(".y-axis")
-            .call(yAxis.scale(newYScale));
+
+          // Update both sets of regression lines
+          Object.entries(regressionData).forEach(([measure, activities]) => {
+            Object.entries(activities).forEach(([activity, data]) => {
+              const line = d3.line()
+                .x(d => newXScale(d.timestamp))
+                .y(d => newYScale(d.predicted));
+
+              regressionGroups[measure].select(`.regression-line.${activity}`)
+                .attr("d", line);
+            });
+          });
+
+          chartArea.select(".x-axis").call(xAxis.scale(newXScale));
+          chartArea.select(".y-axis").call(yAxis.scale(newYScale));
         });
       svg.on("dblclick", () => {
         svg.transition().duration(750)
@@ -383,7 +434,7 @@ document.addEventListener("DOMContentLoaded", () => {
             yMax = 60;
           } else if (hrChecked && !brChecked) {
             // Only heart rate visible
-            yMin = 0;
+            yMin = 30;
             yMax = 200;
           } else if (hrChecked && brChecked) {
             // Both measures visible
@@ -412,6 +463,43 @@ document.addEventListener("DOMContentLoaded", () => {
             .transition()
             .duration(750)
             .call(yAxis);
+
+          // Update regression lines visibility and position
+          const showRegression = document.querySelector('.regression-checkbox').checked;
+
+          // Update heart rate regression lines
+          if (showRegression && hrChecked) {
+            const heartLine = d3.line()
+              .x(d => xScale(d.timestamp))
+              .y(d => yScale(d.predicted))
+              .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+
+            regressionGroups.heart_rate
+              .style("display", "block")
+              .selectAll(".regression-line")
+              .transition()
+              .duration(750)
+              .attr("d", heartLine);
+          } else {
+            regressionGroups.heart_rate.style("display", "none");
+          }
+
+          // Update breathing rate regression lines
+          if (showRegression && brChecked) {
+            const breathingLine = d3.line()
+              .x(d => xScale(d.timestamp))
+              .y(d => yScale(d.predicted))
+              .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+
+            regressionGroups.breathing_rate
+              .style("display", "block")
+              .selectAll(".regression-line")
+              .transition()
+              .duration(750)
+              .attr("d", breathingLine);
+          } else {
+            regressionGroups.breathing_rate.style("display", "none");
+          }
         }
       });
 
@@ -454,6 +542,81 @@ document.addEventListener("DOMContentLoaded", () => {
       if (skipButton) {
         skipButton.addEventListener("click", skipToInteractive);
       }
+
+      // Add regression lines groups for both measures
+      const regressionGroups = {};
+      ['heart_rate', 'breathing_rate'].forEach(measure => {
+        regressionGroups[measure] = chartArea.append("g")
+          .attr("class", `regression-lines ${measure}`)
+          .style("display", "none");
+      });
+
+      // Add regression lines for each activity and measure
+      Object.entries(regressionData).forEach(([measure, activities]) => {
+        Object.entries(activities).forEach(([activity, data]) => {
+          if (data.length === 0) {
+            console.warn(`No valid regression data for ${activity} ${measure}`);
+            return;
+          }
+
+          data.sort((a, b) => a.timestamp - b.timestamp);
+
+          const line = d3.line()
+            .x(d => xScale(d.timestamp))
+            .y(d => yScale(d.predicted))
+            .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+
+          regressionGroups[measure].append("path")
+            .datum(data)
+            .attr("class", `regression-line ${activity}`)
+            .attr("d", line)
+            .attr("fill", "none")
+            .attr("stroke", activityColors[activity])
+            .attr("stroke-width", 2)
+            .attr("opacity", 0.8);
+        });
+      });
+
+      // Update regression checkbox event listener
+      d3.select(".regression-checkbox").on("change", function () {
+        const checked = this.checked;
+        const hrChecked = document.querySelector('.measure-checkbox[value="heart_rate"]').checked;
+        const brChecked = document.querySelector('.measure-checkbox[value="breathing_rate"]').checked;
+
+        // Update heart rate regression lines
+        if (checked && hrChecked) {
+          const heartLine = d3.line()
+            .x(d => xScale(d.timestamp))
+            .y(d => yScale(d.predicted))
+            .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+
+          regressionGroups.heart_rate
+            .style("display", "block")
+            .selectAll(".regression-line")
+            .transition()
+            .duration(750)
+            .attr("d", heartLine);
+        } else {
+          regressionGroups.heart_rate.style("display", "none");
+        }
+
+        // Update breathing rate regression lines
+        if (checked && brChecked) {
+          const breathingLine = d3.line()
+            .x(d => xScale(d.timestamp))
+            .y(d => yScale(d.predicted))
+            .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+
+          regressionGroups.breathing_rate
+            .style("display", "block")
+            .selectAll(".regression-line")
+            .transition()
+            .duration(750)
+            .attr("d", breathingLine);
+        } else {
+          regressionGroups.breathing_rate.style("display", "none");
+        }
+      });
 
     })
     .catch(error => {
