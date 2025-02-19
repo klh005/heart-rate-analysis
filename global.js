@@ -50,22 +50,24 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // --- Data Loading & Combination ---
+  // Include the new "Walking" CSV and limit each CSV to its first 100 rows.
   const dataPaths = [
     "data/sampled_2-Back.csv",
     "data/sampled_Rest.csv",
-    "data/sampled_Running.csv"
+    "data/sampled_Running.csv",
+    "data/sampled_Walking.csv"
   ];
 
   Promise.all(dataPaths.map(path => d3.csv(path)))
     .then(files => {
-      // Combine CSV files into one dataset.
+      // Combine CSV files into one dataset, using only the first 100 rows of each.
       let combinedData = [];
       files.forEach(dataArray => {
-        dataArray.forEach(d => {
+        dataArray.slice(0, 100).forEach(d => {
           const timestamp = +d.timestamp;
           const heartRate = +d.heart_rate;
           const breathingRate = +d.breathing_rate;
-          const activity = d.activity; // "2-Back", "Rest", "Running"
+          const activity = d.activity; // "2-Back", "Rest", "Running", or "Walking"
           if (isNaN(timestamp) || isNaN(heartRate) || isNaN(breathingRate)) {
             console.warn("Skipping row due to NaN value:", d);
             return;
@@ -157,7 +159,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const activityColors = {
         "Running": "#e41a1c",
         "Rest": "#377eb8",
-        "2-Back": "#4daf4a"
+        "2-Back": "#4daf4a",
+        "Walking": "#ff7f00" // Orange for Walking.
       };
 
       // --- Plot Points ---
@@ -209,21 +212,26 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
       // --- Narrative & Heart Button (Click-to-Continue) Setup ---
-      let currentStep = 1;
+      // Initialize currentStep at 0 so that the first click increments it to 1.
+      let currentStep = 0;
       const totalSteps = 6;
       let interactiveActive = false; // becomes true at step 6.
-      let clickEnabled = true; // prevent rapid clicks
+      let clickEnabled = true; // prevents rapid clicks
 
       function updateNarrative(step) {
         if (narrativeContainer) {
-          narrativeContainer.innerHTML = `<p>${stepsText[step]}</p><p style="font-style: italic; color: var(--accent-color);">Click the heart to continue...</p>`;
+          if (step === 0) {
+            narrativeContainer.innerHTML = `<p>Click the heart to start the animation...</p>`;
+          } else {
+            narrativeContainer.innerHTML = `<p>${stepsText[step]}</p><p style="font-style: italic; color: var(--accent-color);">Click the heart to continue...</p>`;
+          }
         }
-        // Ensure heart button is visible (except if it's final and you wish to hide it)
+        // Ensure heart button is visible (unless it's final step)
         if (heartButton && step < totalSteps) {
           heartButton.style.display = "block";
         }
       }
-      updateNarrative(currentStep);
+      updateNarrative(0);
 
       // --- Update Step Function ---
       function updateStep(step) {
@@ -289,7 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (legendContainer) {
                   legendContainer.style.display = "block";
                 }
-                // Optionally hide heart button if you prefer.
+                // Hide heart button on final step.
                 if (heartButton) {
                   heartButton.style.display = "none";
                 }
@@ -310,14 +318,13 @@ document.addEventListener("DOMContentLoaded", () => {
           setTimeout(() => {
             heartButton.classList.remove("beat");
           }, 600);
-          // Trigger current step animation.
+          // Increment step and trigger update.
+          currentStep++;
           updateStep(currentStep);
-          // Wait for animation (transition duration plus small buffer) before next click.
+          // Wait for animation (transition duration plus a small buffer) before allowing next click.
           setTimeout(() => {
-            currentStep++;
             clickEnabled = true;
-            // Show heart button again if not final step.
-            if (currentStep <= totalSteps) {
+            if (currentStep < totalSteps) {
               heartButton.style.display = "block";
             }
           }, 1100);
@@ -326,8 +333,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // --- Legend Interactions ---
       // Activity checkboxes: both heart_rate and breathing_rate points use the same mapping.
-      d3.selectAll(".activity-checkbox").on("change", () => {
+      d3.selectAll(".activity-checkbox").on("change", function() {
         if (interactiveActive) {
+          const activity = this.value;
+          // Update the label's background color.
+          const label = this.parentElement;
+          if (this.checked) {
+            label.style.backgroundColor = activityColors[activity];
+            label.style.color = "#fff";
+          } else {
+            label.style.backgroundColor = "";
+            label.style.color = "";
+          }
           points.attr("fill", d => {
             const checkbox = document.querySelector(`.activity-checkbox[value="${d.activity}"]`);
             return (checkbox && checkbox.checked) ? (activityColors[d.activity] || "gray") : "gray";
