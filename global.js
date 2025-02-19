@@ -156,6 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log(`Prediction for ${conditions[currentConditionIndex]}: ${predictedHR} BPM`);
         // Draw a dashed prediction line with tooltip.
         const predLine = chartArea.append("line")
+          .datum({ predictedHR })
           .attr("class", "prediction-line")
           .attr("x1", 0)
           .attr("y1", yScale(predictedHR))
@@ -163,20 +164,21 @@ document.addEventListener("DOMContentLoaded", () => {
           .attr("y2", yScale(predictedHR))
           .attr("stroke", activityColors[conditions[currentConditionIndex]] || "black")
           .attr("stroke-dasharray", "4,4")
-          .attr("opacity", 0.8);
+          .attr("opacity", 0.8)
+          .style("display", document.querySelector('.measure-checkbox[value="heart_rate"]').checked ? null : "none");
         // Add tooltip behavior to the prediction line.
-        predLine.on("mouseover", function(event) {
+        predLine.on("mouseover", function (event) {
           if (tooltip) {
             tooltip.style.opacity = 1;
             tooltip.innerHTML = `<strong>User estimated:</strong> ${predictedHR} BPM (${conditions[currentConditionIndex]})`;
           }
-        }).on("mousemove", function(event) {
+        }).on("mousemove", function (event) {
           if (tooltip) {
             const [mx, my] = d3.pointer(event, plotContainer);
             tooltip.style.left = (mx + 15) + "px";
             tooltip.style.top = (my - 10) + "px";
           }
-        }).on("mouseout", function() {
+        }).on("mouseout", function () {
           if (tooltip) tooltip.style.opacity = 0;
         });
         // Move to next condition.
@@ -203,7 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const allDataPaths = [
     ...["data/sampled_2-Back.csv", "data/sampled_Rest.csv", "data/sampled_Running.csv", "data/sampled_Walking.csv"],
     ...["data/regression_2-Back_heart.csv", "data/regression_Rest_heart.csv", "data/regression_Running_heart.csv", "data/regression_Walking_heart.csv",
-       "data/regression_2-Back_breathing.csv", "data/regression_Rest_breathing.csv", "data/regression_Running_breathing.csv", "data/regression_Walking_breathing.csv"]
+      "data/regression_2-Back_breathing.csv", "data/regression_Rest_breathing.csv", "data/regression_Running_breathing.csv", "data/regression_Walking_breathing.csv"]
   ];
 
   Promise.all(allDataPaths.map(path => d3.csv(path)))
@@ -374,7 +376,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("fill", d => activityColors[d.activity] || "gray")
         .attr("stroke", "none")
         .attr("opacity", 0.8)
-        .on("mouseover", function(event, d) {
+        .on("mouseover", function (event, d) {
           if (!interactiveActive) return;
           d3.select(this).classed("highlight", true);
           if (!tooltip) return;
@@ -386,14 +388,14 @@ document.addEventListener("DOMContentLoaded", () => {
             <strong>Time:</strong> ${d.timestamp.toFixed(1)} s
           `;
         })
-        .on("mousemove", function(event, d) {
+        .on("mousemove", function (event, d) {
           if (!interactiveActive) return;
           if (!tooltip) return;
           const [mx, my] = d3.pointer(event, plotContainer);
           tooltip.style.left = (mx + 15) + "px";
           tooltip.style.top = (my - 10) + "px";
         })
-        .on("mouseout", function() {
+        .on("mouseout", function () {
           if (!interactiveActive) return;
           d3.select(this).classed("highlight", false);
           if (tooltip) tooltip.style.opacity = 0;
@@ -439,35 +441,66 @@ document.addEventListener("DOMContentLoaded", () => {
             .attr("opacity", 0.8);
         });
       });
-      d3.select(".regression-checkbox").on("change", function() {
+
+      // Initialize activity checkboxes after data loading
+      d3.selectAll(".activity-checkbox").each(function () {
+        const activity = this.value;
+        const label = this.parentElement;
+        // Set checkbox to checked
+        this.checked = true;
+        // Update label style
+        label.style.backgroundColor = activityColors[activity];
+        label.style.color = "#fff";
+      });
+
+      // Update regression checkbox event handler
+      d3.select(".regression-checkbox").on("change", function () {
         const checked = this.checked;
         const hrChecked = document.querySelector('.measure-checkbox[value="heart_rate"]').checked;
         const brChecked = document.querySelector('.measure-checkbox[value="breathing_rate"]').checked;
+
+        // Update heart rate regression lines
         if (checked && hrChecked) {
           const heartLine = d3.line()
             .x(d => xScale(d.timestamp))
             .y(d => yScale(d.predicted))
             .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+
           regressionGroups.heart_rate
             .style("display", "block")
             .selectAll(".regression-line")
-            .transition()
-            .duration(750)
-            .attr("d", heartLine);
+            .each(function () {
+              const activity = this.classList[1];
+              // All activities are checked initially
+              d3.select(this)
+                .transition()
+                .duration(750)
+                .attr("d", heartLine)
+                .attr("stroke", activityColors[activity]); // Always use activity color initially
+            });
         } else {
           regressionGroups.heart_rate.style("display", "none");
         }
+
+        // Update breathing rate regression lines
         if (checked && brChecked) {
           const breathingLine = d3.line()
             .x(d => xScale(d.timestamp))
             .y(d => yScale(d.predicted))
             .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+
           regressionGroups.breathing_rate
             .style("display", "block")
             .selectAll(".regression-line")
-            .transition()
-            .duration(750)
-            .attr("d", breathingLine);
+            .each(function () {
+              const activity = this.classList[1];
+              // All activities are checked initially
+              d3.select(this)
+                .transition()
+                .duration(750)
+                .attr("d", breathingLine)
+                .attr("stroke", activityColors[activity]); // Always use activity color initially
+            });
         } else {
           regressionGroups.breathing_rate.style("display", "none");
         }
@@ -493,6 +526,7 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log(`Prediction for ${conditions[currentConditionIndex]}: ${predictedHR} BPM`);
             // Draw a dashed prediction line with a tooltip.
             const predLine = chartArea.append("line")
+              .datum({ predictedHR })
               .attr("class", "prediction-line")
               .attr("x1", 0)
               .attr("y1", yScale(predictedHR))
@@ -500,19 +534,20 @@ document.addEventListener("DOMContentLoaded", () => {
               .attr("y2", yScale(predictedHR))
               .attr("stroke", activityColors[conditions[currentConditionIndex]] || "black")
               .attr("stroke-dasharray", "4,4")
-              .attr("opacity", 0.8);
-            predLine.on("mouseover", function(event) {
+              .attr("opacity", 0.8)
+              .style("display", document.querySelector('.measure-checkbox[value="heart_rate"]').checked ? null : "none");
+            predLine.on("mouseover", function (event) {
               if (tooltip) {
                 tooltip.style.opacity = 1;
                 tooltip.innerHTML = `<strong>User estimated:</strong> ${predictedHR} BPM (${conditions[currentConditionIndex]})`;
               }
-            }).on("mousemove", function(event) {
+            }).on("mousemove", function (event) {
               if (tooltip) {
                 const [mx, my] = d3.pointer(event, plotContainer);
                 tooltip.style.left = (mx + 15) + "px";
                 tooltip.style.top = (my - 10) + "px";
               }
-            }).on("mouseout", function() {
+            }).on("mouseout", function () {
               if (tooltip) tooltip.style.opacity = 0;
             });
             currentConditionIndex++;
@@ -773,7 +808,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // ========================
       // LEGEND INTERACTIONS
       // ========================
-      d3.selectAll(".activity-checkbox").on("change", function() {
+      d3.selectAll(".activity-checkbox").on("change", function () {
         if (interactiveActive) {
           const activity = this.value;
           const label = this.parentElement;
@@ -793,6 +828,17 @@ document.addEventListener("DOMContentLoaded", () => {
               const checkbox = document.querySelector(`.activity-checkbox[value="${d.activity}"]`);
               return (checkbox && checkbox.checked) ? (activityColors[d.activity] || "gray") : "gray";
             });
+
+          // Update regression lines color
+          const showRegression = document.querySelector('.regression-checkbox').checked;
+          if (showRegression) {
+            ['heart_rate', 'breathing_rate'].forEach(measure => {
+              regressionGroups[measure].selectAll(`.regression-line.${activity}`)
+                .transition()
+                .duration(750)
+                .attr("stroke", this.checked ? activityColors[activity] : "gray");
+            });
+          }
         }
       });
 
@@ -838,6 +884,63 @@ document.addEventListener("DOMContentLoaded", () => {
           chartArea.select(".y-axis")
             .transition().duration(750)
             .call(yAxis);
+
+          // Update regression lines based on measure checkboxes
+          const showRegression = document.querySelector('.regression-checkbox').checked;
+
+          // Update heart rate regression lines
+          if (showRegression && hrChecked) {
+            const heartLine = d3.line()
+              .x(d => xScale(d.timestamp))
+              .y(d => yScale(d.predicted))
+              .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+
+            regressionGroups.heart_rate
+              .style("display", "block")
+              .selectAll(".regression-line")
+              .each(function () {
+                const activity = this.classList[1];
+                const activityChecked = document.querySelector(`.activity-checkbox[value="${activity}"]`).checked;
+                d3.select(this)
+                  .transition()
+                  .duration(750)
+                  .attr("d", heartLine)
+                  .attr("stroke", activityChecked ? activityColors[activity] : "gray");
+              });
+          } else {
+            regressionGroups.heart_rate.style("display", "none");
+          }
+
+          // Update breathing rate regression lines
+          if (showRegression && brChecked) {
+            const breathingLine = d3.line()
+              .x(d => xScale(d.timestamp))
+              .y(d => yScale(d.predicted))
+              .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+
+            regressionGroups.breathing_rate
+              .style("display", "block")
+              .selectAll(".regression-line")
+              .each(function () {
+                const activity = this.classList[1];
+                const activityChecked = document.querySelector(`.activity-checkbox[value="${activity}"]`).checked;
+                d3.select(this)
+                  .transition()
+                  .duration(750)
+                  .attr("d", breathingLine)
+                  .attr("stroke", activityChecked ? activityColors[activity] : "gray");
+              });
+          } else {
+            regressionGroups.breathing_rate.style("display", "none");
+          }
+
+          // Update intro game prediction lines
+          chartArea.selectAll(".prediction-line")
+            .style("display", hrChecked ? null : "none")
+            .transition()
+            .duration(750)
+            .attr("y1", d => yScale(d.predictedHR))
+            .attr("y2", d => yScale(d.predictedHR));
         }
       });
     })
