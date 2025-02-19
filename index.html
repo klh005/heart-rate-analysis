@@ -60,11 +60,56 @@
       <section id="writeup" class="section">
         <div class="container">
           <h2>Project Write-Up</h2>
+          <br>
           <p>
-            <strong>Rationale:</strong> This visualization starts with an interactive intro game where you estimate heart beats (in BPM) for Rest, 2‑Back, and Running by clicking the heart over 5 seconds. After the intro, a narrative animation guides you into full interactive mode with tooltips, zoom/pan, regression lines, and query options.
+            <h3>Rationale</h3> <br>
+            Who would benefit from this visualization? Athletes, fitness enthusiasts, healthcare professionals, and researchers often seek to understand how heart rate responds to different activities. For example, a runner might want to analyze how quickly their heart rate stabilizes after high-intensity exercise, while a cognitive scientist may explore whether mentally demanding tasks elevate heart rate over time. Our interactive visualization allows users to explore these physiological changes dynamically, helping them uncover how heart rate and respiration adapt under varying physical and mental strain.
+            <br>
+            <br>
+            We use data from PhysioNet’s “Simultaneous physiological measurements with five devices at different cognitive and physical loads” dataset, chosen for its comprehensive multi-device recordings. This dataset provides aligned heart rate and respiration rate measurements across different activities, making it ideal for comparing how different stressors impact the body. Understanding these patterns can be valuable for optimizing exercise routines, monitoring stress, or designing interventions for individuals with cardiovascular conditions. To ensure a focused analysis, we selected heart rate, respiration rate, and activity labels as our key variables.
+            <br>
+            <br>
+            To engage users from the start, we introduced an interactive guessing game before the main visualization. Users are prompted to click a heart icon as many times as they believe it would beat in five seconds for different activities (Rest, Walking, Running, and 2-Back). This brief game serves as an intuitive way to set expectations for how heart rate differs across activities, making the subsequent visualizations more relatable and informative.
+            <br>
+            <br>
+            In the data cleaning process, we extracted and processed physiological signal data from all 13 raw WFDB records labeled from x001 to x013, reading both the annotation and signal files. We focused on extracting heart rate and breathing rate signals. We identified time indices corresponding to the start time of activity events from the annotation files, and extracted signal data within a 5-minute window, normalizing timestamps to start from zero. Additionally, we implemented a downsampling strategy to reduce data density while maintaining temporal resolution.
+            <br>
+            <br>
+            During the checkpoint stage, we considered multiple visualization approaches to best represent heart rate variations across cognitive and physical loads. Initially, we explored using a radial plot to display heart rate fluctuations in a circular pattern, emphasizing rhythmic trends across activities. While visually interesting, it proved less intuitive for direct comparisons between activities. We also tested boxplots and violin plots to highlight heart rate distributions and density across different conditions, but these lacked the time-series aspect necessary for tracking changes dynamically. 
+            <br>
+            <br>
+            For the final visualization, it employs a scatter plot to represent heart rate trends across different activities, with each point corresponding to a recorded heart rate measurement. To maintain clarity and avoid overwhelming the user with excessive data, we initially display all points in gray, gradually revealing activity categories as the user interacts. This progressive disclosure technique ensures a smooth exploration process, allowing users to focus on patterns without distraction. Each activity is color-coded—red for Running, blue for Rest, and green for 2-Back—to make distinctions clear and intuitive.
+            <br>
+            <br>
+            For the scatter plots, we created two separate visualizations: 
+            <br>
+            <br>
+            <strong>Heart Rate and Respiration Rate Over Time:</strong> We plotted a scatter plot with timestamps on the x-axis and heart rate or respiration rate (users can choose on) on the y-axis. Each activity (Rest, Walking, Running, and 2-Back) was represented by a different color, allowing for clear differentiation between activities. This visualization helps in understanding how heart rate fluctuates over time for each activity.
+            <br>
+            <strong>Breathing Rate vs. Heart Rate:</strong> Another scatter plot was generated with heart rate on the x-axis and breathing rate on the y-axis. Similar to the previous plot, activities were color-coded for distinction. This visualization provides insights into the relationship between heart rate and breathing rate across different activities.
+            <br>
+            <br>
+            Interactivity plays a crucial role in enhancing the user experience. Clicking the heart icon serves as a progressive tutorial, guiding users through six key steps of data exploration. Users can zoom and pan within the scatter plot to examine finer details of heart rate fluctuations, while tooltips provide precise values when hovering over individual data points. Additionally, a legend toggle allows users to control which activities and physiological measures (e.g., heart rate vs. breathing rate) are displayed, giving them the flexibility to tailor their exploration.
+            <br>
+            <br>
+            For the regression plots, we applied linear regression to each activity separately and plotted their corresponding regression lines on a new graph. These regression lines illustrate the overall trend in heart rate and respiration rate over time for each activity. To ensure clarity, only the regression lines were plotted without the scatter points, making it easier to observe the trend for each activity.
+            <br>
+            <br>
+            To further enhance clarity, we implemented a grayscale starting point, ensuring that users are not overwhelmed by a sudden burst of colors. This design choice reinforces a structured exploration process, where users gradually uncover meaningful insights. Initially, we attempted to visualize the entire dataset, but with 6.57 million data points, the scatter plot became cluttered and difficult to interpret. To balance clarity and representation, we randomly sampled 100,000 data points, preserving key trends while maintaining system performance. This sampling method was chosen over aggregating the data because it retains individual variations in heart rate responses, which could be lost in averaging techniques.
           </p>
+          <br>
           <p>
-            <strong>Development Process:</strong> Built solely with D3.js and vanilla JavaScript, this project demonstrates how to integrate data‐driven animations with interactive controls.
+            <h3>Development Process</h3> <br>Our development process was a collaborative effort, with each team member contributing to different aspects of the project. Kliment Ho and Haoyu Liu focused on data processing and selection, ensuring the dataset was efficiently managed and loaded into the final visualization. This involved downloading and processing the large raw dataset, which took a significant amount of time due to its size. After cleaning and structuring the data, they implemented random sampling to reduce the dataset from over 6.57 million records to 100,000 for optimal performance. This stage alone required 10+ hours due to the complexity of handling such a vast dataset.
+            <br>
+            <br>
+            Ruijia Xiao and Liyun Luo concentrated on the styling of the final visualization and website, ensuring the design was intuitive and visually engaging. They also worked on the write-ups for both project stages, refining our explanations and documentation. This phase took approximately 5 hours, focusing on UI consistency and narrative clarity.
+            <br>
+            <br>
+            All four team members collaborated on the final interactive scatter plot, with each member contributing at different times and coordinating through GitHub for version control. Kliment Ho developed the clicking intro game and the animation to introduce the visualization, and Haoyu Liu implemented the regression lines. The implementation of this core visualization required an additional 8–10 hours, including integrating color-coded data points, interactivity features like zooming and tooltips, and refining legend toggles for filtering activities.
+            <br>
+            <br>
+            The most time-consuming aspects of development included interactivity implementation, particularly ensuring smooth toggling, zooming, and tooltips for an intuitive user experience. Additionally, data processing posed a challenge due to the sheer size of the dataset, requiring careful selection to maintain a representative yet efficient sample. Lastly, visual fine-tuning—aligning colors, legends, and UI elements for clarity—took additional effort to ensure an engaging and user-friendly final product.
+            
           </p>
         </div>
       </section>
