@@ -1,5 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // --- Light/Dark Mode Toggle ---
+  // ========================
+  // LIGHT/DARK MODE TOGGLE
+  // ========================
   const toggleButton = document.getElementById("toggle-theme");
   if (toggleButton) {
     toggleButton.addEventListener("click", () => {
@@ -9,7 +11,9 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("Toggle theme button not found in DOM.");
   }
 
-  // --- Tooltip Setup ---
+  // ========================
+  // TOOLTIP SETUP
+  // ========================
   const plotContainer = document.getElementById("plot");
   let tooltip;
   if (plotContainer) {
@@ -19,22 +23,35 @@ document.addEventListener("DOMContentLoaded", () => {
     plotContainer.appendChild(tooltip);
   }
 
-  // --- Heart Button Setup ---
+  // ========================
+  // INTRO GAME VARIABLES
+  // ========================
+  const conditions = ["Rest", "2-Back", "Running"];
+  let introGameActive = true;
+  let introTimerStarted = false;
+  let introTimerID;
+  let introClickCount = 0;
+  let currentConditionIndex = 0;
+  let introTimeRemaining = 5; // seconds countdown
+
+  // ========================
+  // HEART BUTTON SETUP
+  // ========================
   const heartButton = document.getElementById("heart-button");
   if (heartButton) {
     console.log("Heart button found:", heartButton);
     heartButton.style.display = "block";
   } else {
-    console.warn("Heart button not found in DOM. Ensure your HTML includes <button id='heart-button'>❤</button>");
+    console.warn("Heart button not found in DOM.");
   }
 
-  // --- Legend Container ---
+  // ========================
+  // LEGEND & SLIDER SETUP
+  // ========================
   const legendContainer = document.getElementById("legend");
   if (legendContainer) {
     legendContainer.style.display = "none"; // Hidden until interactive mode.
   }
-
-  // --- Legend Toggle Button ---
   const legendToggle = document.getElementById("legend-toggle");
   if (legendToggle) {
     legendToggle.style.display = "none"; // Hidden until interactive mode.
@@ -48,8 +65,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-
-  // --- Points Slider Setup ---
   let pointsToAdd = 100;
   const slider = document.getElementById("points-slider");
   const sliderValueLabel = document.getElementById("slider-value");
@@ -62,10 +77,11 @@ document.addEventListener("DOMContentLoaded", () => {
         sliderValueLabel.textContent = slider.value;
       }
     });
-    // Initially hidden via CSS.
   }
 
-  // --- Narrative Container ---
+  // ========================
+  // NARRATIVE SETUP
+  // ========================
   const narrativeContainer = document.getElementById("narrative");
   const stepsText = {
     "1": "Step 1: The chart starts off with all data points in gray.",
@@ -76,23 +92,125 @@ document.addEventListener("DOMContentLoaded", () => {
     "6": "Step 6: The chart is now fully interactive! Both heart rate and respiratory points are visible. Use the legend to toggle query options."
   };
 
-  // Declare variables to be used across the data callback.
+  // Global graph variables
   let svg, chartArea, xScale, yScale, zoomBehavior, yAxisLabel;
   let initialPoints, additionalPoints;
+  let currentStep = 0;
+  const totalSteps = 6;
+  let interactiveActive = false;
+  let clickEnabled = true;
 
-  // --- Data Loading & Combination ---
-  const dataPaths = [
-    "data/sampled_2-Back.csv",
-    "data/sampled_Rest.csv",
-    "data/sampled_Running.csv",
-    "data/sampled_Walking.csv"
+  // ========================
+  // NARRATIVE UPDATE FUNCTIONS
+  // ========================
+  function updateNarrative(text) {
+    if (narrativeContainer) {
+      narrativeContainer.innerHTML = `<p>${text}</p>`;
+    }
+  }
+  function updateIntroNarrative() {
+    updateNarrative(`Intro Game: For condition <strong>${conditions[currentConditionIndex]}</strong>, click the heart as many times as you think represent its beats in 5 seconds. Time remaining: ${introTimeRemaining} s. (Current count: ${introClickCount})`);
+  }
+  updateIntroNarrative();
+
+  // ========================
+  // PULSE DOT ANIMATION
+  // ========================
+  function pulseDot() {
+    const heartRect = heartButton.getBoundingClientRect();
+    const svgRect = svg.node().getBoundingClientRect();
+    const cx = heartRect.left + heartRect.width / 2 - svgRect.left;
+    const cy = heartRect.top + heartRect.height / 2 - svgRect.top;
+    const dot = chartArea.append("circle")
+      .attr("cx", cx)
+      .attr("cy", cy)
+      .attr("r", 5)
+      .attr("fill", "#fff")
+      .attr("opacity", 1);
+    // Random angle & distance
+    const angle = Math.random() * 2 * Math.PI;
+    const distance = 30 + Math.random() * 70;
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance;
+    dot.transition()
+      .duration(1000)
+      .attr("cx", cx + dx)
+      .attr("cy", cy + dy)
+      .attr("opacity", 0)
+      .remove();
+  }
+
+  // ========================
+  // INTRO GAME TIMER
+  // ========================
+  function startIntroTimer() {
+    introTimerStarted = true;
+    updateIntroNarrative();
+    introTimerID = setInterval(() => {
+      introTimeRemaining--;
+      updateIntroNarrative();
+      if (introTimeRemaining <= 0) {
+        clearInterval(introTimerID);
+        // Cap predicted BPM at 200.
+        const predictedHR = Math.min(introClickCount * 12, 200);
+        console.log(`Prediction for ${conditions[currentConditionIndex]}: ${predictedHR} BPM`);
+        // Draw a dashed prediction line with tooltip.
+        const predLine = chartArea.append("line")
+          .attr("class", "prediction-line")
+          .attr("x1", 0)
+          .attr("y1", yScale(predictedHR))
+          .attr("x2", xScale.range()[1])
+          .attr("y2", yScale(predictedHR))
+          .attr("stroke", activityColors[conditions[currentConditionIndex]] || "black")
+          .attr("stroke-dasharray", "4,4")
+          .attr("opacity", 0.8);
+        // Add tooltip behavior to the prediction line.
+        predLine.on("mouseover", function(event) {
+          if (tooltip) {
+            tooltip.style.opacity = 1;
+            tooltip.innerHTML = `<strong>User estimated:</strong> ${predictedHR} BPM (${conditions[currentConditionIndex]})`;
+          }
+        }).on("mousemove", function(event) {
+          if (tooltip) {
+            const [mx, my] = d3.pointer(event, plotContainer);
+            tooltip.style.left = (mx + 15) + "px";
+            tooltip.style.top = (my - 10) + "px";
+          }
+        }).on("mouseout", function() {
+          if (tooltip) tooltip.style.opacity = 0;
+        });
+        // Move to next condition.
+        currentConditionIndex++;
+        introClickCount = 0;
+        introTimeRemaining = 5;
+        introTimerStarted = false;
+        if (currentConditionIndex < conditions.length) {
+          updateNarrative(`Intro Game: For condition <strong>${conditions[currentConditionIndex]}</strong>, click the heart as many times as you think represent its beats in 5 seconds. Time remaining: 5 s. (Current count: 0)`);
+        } else {
+          introGameActive = false;
+          updateNarrative("Intro game complete! Proceeding with the visualization animation...");
+          setTimeout(() => {
+            updateStep(1);
+          }, 1000);
+        }
+      }
+    }, 1000);
+  }
+
+  // ========================
+  // DATA LOADING & REGRESSION
+  // ========================
+  const allDataPaths = [
+    ...["data/sampled_2-Back.csv", "data/sampled_Rest.csv", "data/sampled_Running.csv", "data/sampled_Walking.csv"],
+    ...["data/regression_2-Back_heart.csv", "data/regression_Rest_heart.csv", "data/regression_Running_heart.csv", "data/regression_Walking_heart.csv",
+       "data/regression_2-Back_breathing.csv", "data/regression_Rest_breathing.csv", "data/regression_Running_breathing.csv", "data/regression_Walking_breathing.csv"]
   ];
 
-  Promise.all(dataPaths.map(path => d3.csv(path)))
+  Promise.all(allDataPaths.map(path => d3.csv(path)))
     .then(files => {
+      // Process original data (first 4 files)
       let fullData = [];
-      files.forEach(dataArray => {
-        // Use only the first 100 rows from each CSV.
+      files.slice(0, 4).forEach(dataArray => {
         fullData = fullData.concat(dataArray.slice(0, 100));
       });
       console.log("Full data rows:", fullData.length);
@@ -116,7 +234,22 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       console.log("Initial displayed points:", initialDisplayedData.length);
 
-      // --- SVG Setup ---
+      // Process regression data (files 5-12)
+      const regressionData = { heart_rate: {}, breathing_rate: {} };
+      files.slice(4).forEach((dataArray, index) => {
+        const parts = allDataPaths[index + 4].split('_'); // e.g., regression_2-Back_heart.csv
+        const activity = parts[1];
+        const measurePart = parts[2].split('.')[0]; // "heart" or "breathing"
+        const measureKey = measurePart === "heart" ? "heart_rate" : "breathing_rate";
+        regressionData[measureKey][activity] = dataArray.map(d => ({
+          timestamp: +d.timestamp,
+          predicted: measurePart === "heart" ? +d.predicted_heart_rate : +d.predicted_breathing_rate
+        })).filter(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+      });
+
+      // ========================
+      // SVG SETUP
+      // ========================
       const margin = { top: 20, right: 20, bottom: 60, left: 80 };
       const containerWidth = plotContainer.clientWidth || 600;
       const width = containerWidth - margin.left - margin.right;
@@ -128,7 +261,9 @@ document.addEventListener("DOMContentLoaded", () => {
       chartArea = svg.append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
 
-      // --- Scales & Axes ---
+      // ========================
+      // SCALES & AXES
+      // ========================
       xScale = d3.scaleLinear()
         .domain(d3.extent(fullDataExpanded, d => d.timestamp))
         .range([0, width])
@@ -149,7 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("class", "y-axis")
         .call(yAxis);
 
-      // --- Add Axis Labels ---
+      // Add Axis Labels
       chartArea.append("text")
         .attr("class", "x-axis-label")
         .attr("x", width / 2)
@@ -164,7 +299,9 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("text-anchor", "middle")
         .text("Heart Rate / Respiration Rate");
 
-      // --- Zoom & Pan Setup (Final Interactive Mode) ---
+      // ========================
+      // ZOOM & PAN SETUP
+      // ========================
       zoomBehavior = d3.zoom()
         .scaleExtent([1, 20])
         .translateExtent([[0, 0], [width, height]])
@@ -183,6 +320,17 @@ document.addEventListener("DOMContentLoaded", () => {
             const ty = newYScale(d.value);
             return `translate(${tx},${ty})`;
           });
+          // Update regression lines as well.
+          Object.entries(regressionData).forEach(([measure, activities]) => {
+            Object.entries(activities).forEach(([activity, data]) => {
+              const line = d3.line()
+                .x(d => newXScale(d.timestamp))
+                .y(d => newYScale(d.predicted))
+                .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+              regressionGroups[measure].select(`.regression-line.${activity}`)
+                .attr("d", line);
+            });
+          });
           chartArea.select(".x-axis").call(xAxis.scale(newXScale));
           chartArea.select(".y-axis").call(yAxis.scale(newYScale));
         });
@@ -191,7 +339,9 @@ document.addEventListener("DOMContentLoaded", () => {
           .call(zoomBehavior.transform, d3.zoomIdentity);
       });
 
-      // --- Color Mapping ---
+      // ========================
+      // COLOR MAPPING
+      // ========================
       const activityColors = {
         "Running": "#e41a1c",
         "Rest": "#377eb8",
@@ -199,7 +349,9 @@ document.addEventListener("DOMContentLoaded", () => {
         "Walking": "#ff7f00"
       };
 
-      // --- Draw Initial Points ---
+      // ========================
+      // DRAW INITIAL POINTS
+      // ========================
       const symbolGenerator = d3.symbol().size(64);
       initialPoints = chartArea.selectAll(".point.initial")
         .data(initialDisplayedData)
@@ -248,26 +400,178 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       additionalPoints = chartArea.selectAll(".point.additional");
 
-      // --- Narrative & Heart Button Setup ---
-      let currentStep = 0;
-      const totalSteps = 6;
-      let interactiveActive = false;
-      let clickEnabled = true;
-      function updateNarrative(step) {
-        if (narrativeContainer) {
-          if (step === 0) {
-            narrativeContainer.innerHTML = `<p>Click the heart to start the animation...</p>`;
-          } else {
-            narrativeContainer.innerHTML = `<p>${stepsText[step]}</p><p style="font-style: italic; color: var(--accent-color);">Click the heart to continue...</p>`;
-          }
+      // ========================
+      // REGRESSION LINES SETUP
+      // ========================
+      const regressionGroups = {};
+      ["heart_rate", "breathing_rate"].forEach(measure => {
+        regressionGroups[measure] = chartArea.append("g")
+          .attr("class", `regression-lines ${measure}`)
+          .style("display", "none");
+      });
+      files.slice(4).forEach((dataArray, index) => {
+        const parts = allDataPaths[index + 4].split('_'); // e.g., regression_2-Back_heart.csv
+        const activity = parts[1];
+        const measurePart = parts[2].split('.')[0]; // "heart" or "breathing"
+        const measureKey = measurePart === "heart" ? "heart_rate" : "breathing_rate";
+        const data = dataArray.map(d => ({
+          timestamp: +d.timestamp,
+          predicted: measurePart === "heart" ? +d.predicted_heart_rate : +d.predicted_breathing_rate
+        })).filter(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+        if (!regressionData[measureKey][activity]) regressionData[measureKey][activity] = [];
+        regressionData[measureKey][activity] = data;
+      });
+      Object.entries(regressionData).forEach(([measure, activities]) => {
+        Object.entries(activities).forEach(([activity, data]) => {
+          if (data.length === 0) return;
+          data.sort((a, b) => a.timestamp - b.timestamp);
+          const line = d3.line()
+            .x(d => xScale(d.timestamp))
+            .y(d => yScale(d.predicted))
+            .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+          regressionGroups[measure].append("path")
+            .datum(data)
+            .attr("class", `regression-line ${activity}`)
+            .attr("d", line)
+            .attr("fill", "none")
+            .attr("stroke", activityColors[activity])
+            .attr("stroke-width", 2)
+            .attr("opacity", 0.8);
+        });
+      });
+      d3.select(".regression-checkbox").on("change", function() {
+        const checked = this.checked;
+        const hrChecked = document.querySelector('.measure-checkbox[value="heart_rate"]').checked;
+        const brChecked = document.querySelector('.measure-checkbox[value="breathing_rate"]').checked;
+        if (checked && hrChecked) {
+          const heartLine = d3.line()
+            .x(d => xScale(d.timestamp))
+            .y(d => yScale(d.predicted))
+            .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+          regressionGroups.heart_rate
+            .style("display", "block")
+            .selectAll(".regression-line")
+            .transition()
+            .duration(750)
+            .attr("d", heartLine);
+        } else {
+          regressionGroups.heart_rate.style("display", "none");
         }
-        if (heartButton && step < totalSteps) {
-          heartButton.style.display = "block";
+        if (checked && brChecked) {
+          const breathingLine = d3.line()
+            .x(d => xScale(d.timestamp))
+            .y(d => yScale(d.predicted))
+            .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+          regressionGroups.breathing_rate
+            .style("display", "block")
+            .selectAll(".regression-line")
+            .transition()
+            .duration(750)
+            .attr("d", breathingLine);
+        } else {
+          regressionGroups.breathing_rate.style("display", "none");
         }
-      }
-      updateNarrative(0);
+      });
 
-      // --- Update Step Function ---
+      // ========================
+      // INTRO GAME & NARRATIVE
+      // ========================
+      function updateIntroNarrativeText() {
+        updateNarrative(`Intro Game: For condition <strong>${conditions[currentConditionIndex]}</strong>, click the heart as many times as you think represent its beats in 5 seconds. Time remaining: ${introTimeRemaining} s. (Current count: ${introClickCount})`);
+      }
+      updateIntroNarrativeText();
+
+      function startIntroTimer() {
+        introTimerStarted = true;
+        updateIntroNarrativeText();
+        introTimerID = setInterval(() => {
+          introTimeRemaining--;
+          updateIntroNarrativeText();
+          if (introTimeRemaining <= 0) {
+            clearInterval(introTimerID);
+            const predictedHR = Math.min(introClickCount * 12, 200);
+            console.log(`Prediction for ${conditions[currentConditionIndex]}: ${predictedHR} BPM`);
+            // Draw a dashed prediction line with a tooltip.
+            const predLine = chartArea.append("line")
+              .attr("class", "prediction-line")
+              .attr("x1", 0)
+              .attr("y1", yScale(predictedHR))
+              .attr("x2", xScale.range()[1])
+              .attr("y2", yScale(predictedHR))
+              .attr("stroke", activityColors[conditions[currentConditionIndex]] || "black")
+              .attr("stroke-dasharray", "4,4")
+              .attr("opacity", 0.8);
+            predLine.on("mouseover", function(event) {
+              if (tooltip) {
+                tooltip.style.opacity = 1;
+                tooltip.innerHTML = `<strong>User estimated:</strong> ${predictedHR} BPM (${conditions[currentConditionIndex]})`;
+              }
+            }).on("mousemove", function(event) {
+              if (tooltip) {
+                const [mx, my] = d3.pointer(event, plotContainer);
+                tooltip.style.left = (mx + 15) + "px";
+                tooltip.style.top = (my - 10) + "px";
+              }
+            }).on("mouseout", function() {
+              if (tooltip) tooltip.style.opacity = 0;
+            });
+            currentConditionIndex++;
+            introClickCount = 0;
+            introTimeRemaining = 5;
+            introTimerStarted = false;
+            if (currentConditionIndex < conditions.length) {
+              updateNarrative(`Intro Game: For condition <strong>${conditions[currentConditionIndex]}</strong>, click the heart as many times as you think represent its beats in 5 seconds. Time remaining: 5 s. (Current count: 0)`);
+            } else {
+              introGameActive = false;
+              updateNarrative("Intro game complete! Proceeding with the visualization animation...");
+              setTimeout(() => {
+                updateStep(1);
+              }, 1000);
+            }
+          }
+        }, 1000);
+      }
+
+      // ========================
+      // HEART BUTTON CLICK HANDLER
+      // ========================
+      heartButton.addEventListener("click", () => {
+        // Always play pulse animation.
+        pulseDot();
+        // --- Intro Game Mode ---
+        if (introGameActive) {
+          if (!introTimerStarted) {
+            startIntroTimer();
+          }
+          introClickCount++;
+          updateIntroNarrativeText();
+          return; // Exit to avoid running interactive mode.
+        }
+        // --- Interactive Mode ---
+        if (!clickEnabled) return;
+        clickEnabled = false;
+        heartButton.classList.add("beat");
+        setTimeout(() => {
+          heartButton.classList.remove("beat");
+        }, 600);
+        if (currentStep < totalSteps) {
+          currentStep++;
+          updateStep(currentStep);
+        } else if (interactiveActive) {
+          // Instead of re-adding old points, sample new ones.
+          addMorePoints();
+        }
+        setTimeout(() => {
+          clickEnabled = true;
+          if (currentStep < totalSteps) {
+            heartButton.style.display = "block";
+          }
+        }, 1100);
+      });
+
+      // ========================
+      // UPDATE STEP FUNCTION (Narrative Animation)
+      // ========================
       function updateStep(step) {
         console.log("Running animation for step", step);
         switch (step) {
@@ -275,23 +579,23 @@ document.addEventListener("DOMContentLoaded", () => {
             initialPoints.transition().duration(1000)
               .attr("fill", "gray")
               .attr("opacity", 0.8)
-              .on("end", () => { updateNarrative(step); });
+              .on("end", () => { updateNarrative(stepsText[step] + " <em>Click the heart to continue...</em>"); });
             break;
           case 2:
             initialPoints.transition().duration(1000)
               .attr("fill", d => d.measure === "heart_rate" ? "#d7191c" : "#2c7bb6")
-              .on("end", () => { updateNarrative(step); });
+              .on("end", () => { updateNarrative(stepsText[step] + " <em>Click the heart to continue...</em>"); });
             break;
           case 3:
             initialPoints.transition().duration(1000)
               .attr("opacity", d => d.measure === "heart_rate" ? 0.8 : 0)
-              .on("end", () => { updateNarrative(step); });
+              .on("end", () => { updateNarrative(stepsText[step] + " <em>Click the heart to continue...</em>"); });
             break;
           case 4:
             initialPoints.transition().duration(1000)
               .attr("fill", d => (d.measure === "heart_rate" && d.activity === "Rest") ? "#377eb8" : "gray")
               .attr("opacity", d => d.measure === "heart_rate" ? 0.8 : 0)
-              .on("end", () => { updateNarrative(step); });
+              .on("end", () => { updateNarrative(stepsText[step] + " <em>Click the heart to continue...</em>"); });
             break;
           case 5:
             initialPoints.transition().duration(1000)
@@ -304,14 +608,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 return "gray";
               })
               .attr("opacity", d => d.measure === "heart_rate" ? 0.8 : 0)
-              .on("end", () => { updateNarrative(step); });
+              .on("end", () => { updateNarrative(stepsText[step] + " <em>Click the heart to continue...</em>"); });
             break;
           case 6:
             initialPoints.transition().duration(1000)
               .attr("fill", d => activityColors[d.activity] || "gray")
               .attr("opacity", 0.8)
               .on("end", () => {
-                updateNarrative(step);
+                updateNarrative(stepsText[step]);
                 initialPoints.classed("non-interactive", false);
                 svg.call(zoomBehavior);
                 interactiveActive = true;
@@ -328,7 +632,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   legendToggle.style.display = "block";
                   legendToggle.innerHTML = "Hide Legend";
                 }
-                // KEEP the heart button visible so it can pump points.
+                // Keep heart button visible for pumping points.
                 if (heartButton) {
                   heartButton.style.display = "block";
                 }
@@ -340,7 +644,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      // --- Axis Label Update Function ---
+      // ========================
+      // AXIS LABEL UPDATE FUNCTION
+      // ========================
       function updateYAxisLabel() {
         const hrChecked = document.querySelector('.measure-checkbox[value="heart_rate"]').checked;
         const brChecked = document.querySelector('.measure-checkbox[value="breathing_rate"]').checked;
@@ -355,10 +661,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      // --- Function to Add/Remove Points with Pumping Animation ---
+      // ========================
+      // FUNCTION TO ADD/REMOVE POINTS (Resampling New Points)
+      // ========================
       function addMorePoints() {
-        // If slider value is positive, add points normally.
         if (pointsToAdd >= 0) {
+          // Sample new points from each group's remaining data.
           let heartRect = heartButton.getBoundingClientRect();
           let svgRect = svg.node().getBoundingClientRect();
           let startX = heartRect.left + heartRect.width / 2 - svgRect.left;
@@ -368,10 +676,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (currentIndex >= arr.length) return;
             let newIndex = Math.min(currentIndex + pointsToAdd, arr.length);
             let newPointsData = arr.slice(currentIndex, newIndex);
+            // Update counter for this activity (do not decrement on removal).
             currentIndexByActivity[activity] = newIndex;
             newPointsData.forEach(d => {
-              let finalX = xScale(d.timestamp);
-              let finalY = yScale(d.value);
               chartArea.append("path")
                 .datum(d)
                 .attr("class", "point additional")
@@ -394,16 +701,13 @@ document.addEventListener("DOMContentLoaded", () => {
           });
           additionalPoints = chartArea.selectAll(".point.additional");
         } else {
-          // If slider value is negative, remove the last |pointsToAdd| additional points with an animation.
+          // Remove points: animate them sliding back to the heart.
           let numToRemove = Math.abs(pointsToAdd);
-          // Get the additional points as an array.
           let additionalNodes = chartArea.selectAll("path.point.additional").nodes();
-          // Calculate heart button center.
           let heartRect = heartButton.getBoundingClientRect();
           let svgRect = svg.node().getBoundingClientRect();
           let heartX = heartRect.left + heartRect.width / 2 - svgRect.left;
           let heartY = heartRect.top + heartRect.height / 2 - svgRect.top;
-          // Select the last numToRemove nodes.
           let nodesToRemove = additionalNodes.slice(-numToRemove);
           nodesToRemove.forEach(node => {
             d3.select(node)
@@ -412,38 +716,21 @@ document.addEventListener("DOMContentLoaded", () => {
               .attr("transform", `translate(${heartX}, ${heartY})`)
               .style("opacity", 0)
               .remove();
+            // Do not decrement currentIndexByActivity so new points come from later in the data.
           });
           additionalPoints = chartArea.selectAll("path.point.additional");
         }
       }
 
-      // --- Heart Button Click Handler ---
-      if (heartButton) {
-        heartButton.addEventListener("click", () => {
-          if (!clickEnabled) return;
-          clickEnabled = false;
-          heartButton.classList.add("beat");
-          setTimeout(() => {
-            heartButton.classList.remove("beat");
-          }, 600);
-          if (currentStep < totalSteps) {
-            currentStep++;
-            updateStep(currentStep);
-          } else if (interactiveActive) {
-            addMorePoints();
-          }
-          setTimeout(() => {
-            clickEnabled = true;
-            if (currentStep < totalSteps) {
-              heartButton.style.display = "block";
-            }
-          }, 1100);
-        });
-      }
-
-      // --- Skip Animation Function ---
+      // ========================
+      // SKIP ANIMATION FUNCTION
+      // ========================
       function skipToInteractive() {
         console.log("Skip animation button clicked");
+        if (introGameActive) {
+          clearInterval(introTimerID);
+          introGameActive = false;
+        }
         initialPoints.interrupt();
         additionalPoints.interrupt();
         initialPoints.classed("non-interactive", false)
@@ -471,12 +758,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (narrativeContainer) {
           narrativeContainer.innerHTML = `<p>${stepsText[6]}</p>`;
         }
-        // KEEP the heart button visible to pump points.
         if (heartButton) {
           heartButton.style.display = "block";
         }
         currentStep = totalSteps;
-        // Disable skip button after skipping.
         skipButton.disabled = true;
         skipButton.style.display = "none";
       }
@@ -485,7 +770,9 @@ document.addEventListener("DOMContentLoaded", () => {
         skipButton.addEventListener("click", skipToInteractive);
       }
 
-      // --- Legend Interactions ---
+      // ========================
+      // LEGEND INTERACTIONS
+      // ========================
       d3.selectAll(".activity-checkbox").on("change", function() {
         if (interactiveActive) {
           const activity = this.value;
