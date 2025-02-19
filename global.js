@@ -210,7 +210,22 @@ document.addEventListener("DOMContentLoaded", () => {
       svg = d3.select("#plot").append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom);
-      chartArea = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+      chartArea = svg.append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      // Add clipPath definition
+      chartArea.append("defs")
+        .append("clipPath")
+        .attr("id", "plot-area")
+        .append("rect")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("x", 0)
+        .attr("y", 0);
+
+      // Add a group for clipped elements
+      const clippedArea = chartArea.append("g")
+        .attr("clip-path", "url(#plot-area)");
 
       // ---------- SCALES & AXES ----------
       xScale = d3.scaleLinear().domain(d3.extent(expanded, d => d.timestamp)).range([0, width]).nice();
@@ -261,7 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
       svg.on("dblclick", () => svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity));
 
       // ---------- DRAW INITIAL POINTS (Hidden) ----------
-      initialPoints = chartArea.selectAll(".point.initial")
+      initialPoints = clippedArea.selectAll(".point.initial")
         .data(initialData)
         .enter()
         .append("path")
@@ -283,12 +298,12 @@ document.addEventListener("DOMContentLoaded", () => {
           tooltip.style.top = (my - 10) + "px";
         })
         .on("mouseout", () => tooltip.style.opacity = 0);
-      additionalPoints = chartArea.selectAll(".point.additional");
+      additionalPoints = clippedArea.selectAll(".point.additional");
 
       // ---------- REGRESSION LINES ----------
       const regressionGroups = {};
       ["heart_rate", "breathing_rate"].forEach(m => {
-        regressionGroups[m] = chartArea.append("g")
+        regressionGroups[m] = clippedArea.append("g")
           .attr("class", `regression-lines ${m}`)
           .style("display", "none");
       });
@@ -403,7 +418,7 @@ document.addEventListener("DOMContentLoaded", () => {
             clearInterval(introTimerID);
             const predicted = Math.min(introClickCount * 12, 200);
             console.log(`Prediction for ${conditions[currentCondIndex]}: ${predicted} BPM`);
-            const predLine = chartArea.append("line")
+            const predLine = clippedArea.append("line")
               .datum({ predictedHR: predicted })
               .attr("class", "prediction-line")
               .attr("x1", 0)
@@ -577,10 +592,10 @@ document.addEventListener("DOMContentLoaded", () => {
               .attr("opacity", 0.8)
               .attr("transform", `translate(${xScale(d.timestamp)},${yScale(d.value)})`);
           });
-          additionalPoints = chartArea.selectAll("path.point.additional");
+          additionalPoints = clippedArea.selectAll("path.point.additional");
         } else {
           const numToRemove = Math.abs(pointsToAdd);
-          const nodes = chartArea.selectAll("path.point.additional").nodes();
+          const nodes = clippedArea.selectAll("path.point.additional").nodes();
           const hb = heartButton.getBoundingClientRect();
           const svgRect = svg.node().getBoundingClientRect();
           const hx = hb.left + hb.width / 2 - svgRect.left, hy = hb.top + hb.height / 2 - svgRect.top;
@@ -590,7 +605,7 @@ document.addEventListener("DOMContentLoaded", () => {
               .style("opacity", 0)
               .remove();
           });
-          additionalPoints = chartArea.selectAll("path.point.additional");
+          additionalPoints = clippedArea.selectAll("path.point.additional");
         }
       }
 
@@ -660,7 +675,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Update intro game prediction lines
         const hrChecked = document.querySelector('.measure-checkbox[value="heart_rate"]').checked;
-        chartArea.selectAll(".prediction-line")
+        clippedArea.selectAll(".prediction-line")
           .style("display", hrChecked ? null : "none")
           .transition()
           .duration(750)
