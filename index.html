@@ -19,6 +19,7 @@
         <button id="toggle-theme" aria-label="Toggle Light/Dark Mode">Toggle Theme</button>
       </div>
     </header>
+
     <main>
       <section id="visualization" class="section">
         <div class="container flex-container">
@@ -40,20 +41,19 @@
             <label><input type="checkbox" class="regression-checkbox" value="regression"> Show Regression Lines</label>
           </div>
         </div>
-        <!-- Legend Toggle Button (positioned above the legend) -->
+        <!-- Legend Toggle Button -->
         <button id="legend-toggle" aria-label="Toggle Legend">Hide Legend</button>
         <!-- Button Container -->
         <div class="button-container">
-          <!-- The heart button is used for both the intro game and pumping points -->
           <button id="heart-button" aria-label="Continue"><span>❤</span></button>
-          <!-- Narrative Container -->
+          <!-- Narrative -->
           <section id="narrative" class="section">
             <div class="container"></div>
           </section>
-          <!-- Slider (and its label) for adjusting points; hidden until interactive mode -->
+          <!-- Slider for adjusting points -->
           <label id="slider-label" for="points-slider">Points to add: <span id="slider-value">100</span></label>
           <input type="range" id="points-slider" min="-500" max="500" step="10" value="100">
-          <!-- Skip Animation Button -->
+          <!-- Skip Button -->
           <button id="skip-button">Skip Animation</button>
         </div>
       </section>

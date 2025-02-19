@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const conditions = ["Rest", "2-Back", "Running"];
   let introActive = true, introTimerStarted = false;
   let introTimerID, introClickCount = 0;
-  let currentCondIndex = 0, introTime = 5; // seconds
+  let currentCondIndex = 0, introTime = 5;
 
   // ---------- HEART BUTTON ----------
   const heartButton = document.getElementById("heart-button");
@@ -50,22 +50,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const stepsText = {
     "1": "Step 1: The chart fades in in gray.",
     "2": "Step 2: Points change color (heart red, respiration blue).",
-    "3": "Step 3: Respiratory points are hidden.",
-    "4": "Step 4: Rest points are highlighted.",
-    "5": "Step 5: 2‑Back and Running are revealed.",
+    "3": "Step 3: Respiratory points hidden.",
+    "4": "Step 4: Rest points highlighted.",
+    "5": "Step 5: 2‑Back and Running revealed.",
     "6": "Step 6: Interactive mode active."
   };
   function updateNarrative(text) {
     narrativeContainer.innerHTML = `<p>${text}</p>`;
   }
-  // Use constant text (except for the countdown time)
   function updateIntroText() {
-    updateNarrative(`Intro Game: For condition <strong>${conditions[currentCondIndex]}</strong>, click the heart as many times as you think represent its beats in 5 seconds. Time remaining: ${introTime} s.`);
+    updateNarrative(`Intro Game: For <strong>${conditions[currentCondIndex]}</strong>, click the heart. Time remaining: ${introTime} s, Count: ${introClickCount}`);
   }
   updateIntroText();
 
-  // ---------- GLOBAL VARIABLES ----------
-  let svg, chartArea, xScale, yScale, zoom;
+  // ---------- GLOBAL GRAPH VARIABLES ----------
+  let svg, chartArea, xScale, yScale, zoom, xAxis, yAxis, yAxisLabel;
   let initialPoints, additionalPoints;
   let currentStep = 0, totalSteps = 6;
   let interactiveActive = false, clickEnabled = true;
@@ -75,19 +74,30 @@ document.addEventListener("DOMContentLoaded", () => {
   const activityColors = { "Running": "#e41a1c", "Rest": "#377eb8", "2-Back": "#4daf4a", "Walking": "#ff7f00" };
   const symbolGen = d3.symbol().size(64);
 
-  // ---------- SIMPLE PULSE ANIMATION ----------
+  // ---------- SIMPLE PULSE ANIMATION (Flying Dot) ----------
   function pulseDot() {
     if (!svg) return;
+    // Start from a random x off the top (y = -50)
+    const startX = Math.random() * plotContainer.clientWidth;
+    const startY = -50;
     const hb = heartButton.getBoundingClientRect();
     const svgRect = svg.node().getBoundingClientRect();
-    const cx = hb.left + hb.width/2 - svgRect.left;
-    const cy = hb.top + hb.height/2 - svgRect.top;
+    const targetX = hb.left + hb.width / 2 - svgRect.left;
+    const targetY = hb.top + hb.height / 2 - svgRect.top;
     const dot = chartArea.append("circle")
-      .attr("cx", cx).attr("cy", cy).attr("r", 8)
-      .attr("fill", "#fff").attr("opacity", 1);
-    dot.transition().duration(200).attr("r", 4)
-      .transition().duration(200).attr("r", 8)
-      .transition().duration(200).style("opacity", 0).remove();
+      .attr("cx", startX)
+      .attr("cy", startY)
+      .attr("r", 6)
+      .attr("fill", "#fff")
+      .attr("opacity", 1);
+    dot.transition()
+      .duration(800)
+      .attr("cx", targetX)
+      .attr("cy", targetY)
+      .transition()
+      .duration(200)
+      .style("opacity", 0)
+      .remove();
   }
 
   // ---------- INTRO GAME TIMER ----------
@@ -101,7 +111,6 @@ document.addEventListener("DOMContentLoaded", () => {
         clearInterval(introTimerID);
         const predicted = Math.min(introClickCount * 12, 200);
         console.log(`Prediction for ${conditions[currentCondIndex]}: ${predicted} BPM`);
-        // Draw prediction line
         const predLine = chartArea.append("line")
           .attr("class", "prediction-line")
           .attr("x1", 0)
@@ -120,9 +129,11 @@ document.addEventListener("DOMContentLoaded", () => {
           tooltip.style.top = (my-10)+"px";
         }).on("mouseout", () => tooltip.style.opacity = 0);
         currentCondIndex++;
-        introClickCount = 0; introTime = 5; introTimerStarted = false;
+        introClickCount = 0; 
+        introTime = 5; 
+        introTimerStarted = false;
         if (currentCondIndex < conditions.length)
-          updateNarrative(`Intro Game: For condition <strong>${conditions[currentCondIndex]}</strong>, click the heart. Time remaining: 5 s.`);
+          updateNarrative(`Intro Game: For <strong>${conditions[currentCondIndex]}</strong>, click the heart. Time remaining: 5 s, Count: 0`);
         else {
           introActive = false;
           updateNarrative("Intro game complete! Proceeding with visualization...");
@@ -154,15 +165,15 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(files => {
       // Process original data (first 4 files)
       let fullData = [];
-      files.slice(0,4).forEach(arr => fullData = fullData.concat(arr.slice(0,100)));
+      files.slice(0, 4).forEach(arr => { fullData = fullData.concat(arr.slice(0, 100)); });
       fullData.forEach(d => {
         d.timestamp = +d.timestamp;
         d.heart_rate = +d.heart_rate;
         d.breathing_rate = +d.breathing_rate;
       });
       let expanded = fullData.flatMap(d => [
-        { ...d, measure:"heart_rate", value: d.heart_rate },
-        { ...d, measure:"breathing_rate", value: d.breathing_rate }
+        { ...d, measure: "heart_rate", value: d.heart_rate },
+        { ...d, measure: "breathing_rate", value: d.breathing_rate }
       ]);
       expanded = d3.shuffle(expanded);
       // Group by activity and sample 100 points per activity.
@@ -175,16 +186,15 @@ document.addEventListener("DOMContentLoaded", () => {
         currentIndexByActivity[act] = n;
         initialData = initialData.concat(arr.slice(0, n));
       });
-      // Remaining data: all points not in initialData.
       remainingData = d3.shuffle(expanded.filter(d => !initialData.includes(d)));
 
       // Process regression data (files 5-12)
       const regressionData = { heart_rate: {}, breathing_rate: {} };
       files.slice(4).forEach((arr, i) => {
-        const parts = regressionPaths[i].split('_'); // e.g., regression_2-Back_heart.csv
-        const activity = parts[1];
+        const parts = regressionPaths[i].split('_');
+        const act = parts[1];
         const measureKey = parts[2].split('.')[0] === "heart" ? "heart_rate" : "breathing_rate";
-        regressionData[measureKey][activity] = arr.map(d => ({
+        regressionData[measureKey][act] = arr.map(d => ({
           timestamp: +d.timestamp,
           predicted: measureKey === "heart_rate" ? +d.predicted_heart_rate : +d.predicted_breathing_rate
         })).filter(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
@@ -198,28 +208,27 @@ document.addEventListener("DOMContentLoaded", () => {
       svg = d3.select("#plot").append("svg")
         .attr("width", width+margin.left+margin.right)
         .attr("height", height+margin.top+margin.bottom);
-      chartArea = svg.append("g")
-        .attr("transform", `translate(${margin.left},${margin.top})`);
+      chartArea = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
       // ---------- SCALES & AXES ----------
-      xScale = d3.scaleLinear().domain(d3.extent(expanded, d => d.timestamp)).range([0,width]).nice();
-      yScale = d3.scaleLinear().domain([d3.extent(expanded, d => d.value)[0]-5, d3.extent(expanded, d => d.value)[1]+5]).range([height,0]).nice();
-      const xAxis = d3.axisBottom(xScale).ticks(6).tickFormat(d => d + " s");
-      const yAxis = d3.axisLeft(yScale);
-      chartArea.append("g").attr("class","x-axis").attr("transform", `translate(0,${height})`).call(xAxis);
-      chartArea.append("g").attr("class","y-axis").call(yAxis);
+      xScale = d3.scaleLinear().domain(d3.extent(expanded, d => d.timestamp)).range([0, width]).nice();
+      yScale = d3.scaleLinear().domain([d3.extent(expanded, d => d.value)[0]-5, d3.extent(expanded, d => d.value)[1]+5]).range([height, 0]).nice();
+      xAxis = d3.axisBottom(xScale).ticks(6).tickFormat(d => d + " s");
+      yAxis = d3.axisLeft(yScale);
+      chartArea.append("g").attr("class", "x-axis").attr("transform", `translate(0,${height})`).call(xAxis);
+      chartArea.append("g").attr("class", "y-axis").call(yAxis);
       chartArea.append("text")
-        .attr("class","x-axis-label")
+        .attr("class", "x-axis-label")
         .attr("x", width/2)
         .attr("y", height+margin.bottom-10)
-        .attr("text-anchor","middle")
+        .attr("text-anchor", "middle")
         .text("Timestamp (seconds) across 5 minutes");
       yAxisLabel = chartArea.append("text")
-        .attr("class","y-axis-label")
-        .attr("transform","rotate(-90)")
+        .attr("class", "y-axis-label")
+        .attr("transform", "rotate(-90)")
         .attr("x", -height/2)
         .attr("y", -margin.left+20)
-        .attr("text-anchor","middle")
+        .attr("text-anchor", "middle")
         .text("Heart Rate / Respiration Rate");
 
       // ---------- ZOOM & PAN ----------
@@ -232,9 +241,19 @@ document.addEventListener("DOMContentLoaded", () => {
           const newY = event.transform.rescaleY(yScale);
           initialPoints.attr("transform", d => `translate(${newX(d.timestamp)},${newY(d.value)})`);
           additionalPoints.attr("transform", d => `translate(${newX(d.timestamp)},${newY(d.value)})`);
+          // Update regression lines (if displayed)
+          Object.entries(regressionData).forEach(([m, acts]) => {
+            Object.entries(acts).forEach(([act, data]) => {
+              const line = d3.line()
+                .x(d => newX(d.timestamp))
+                .y(d => newY(d.predicted))
+                .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
+              if (regressionGroups[m])
+                regressionGroups[m].select(`.regression-line.${act}`).attr("d", line);
+            });
+          });
           chartArea.select(".x-axis").call(xAxis.scale(newX));
           chartArea.select(".y-axis").call(yAxis.scale(newY));
-          // (Regression lines update omitted here for brevity; include if needed.)
         });
       svg.call(zoom);
       svg.on("dblclick", () => svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity));
@@ -250,35 +269,36 @@ document.addEventListener("DOMContentLoaded", () => {
         .attr("fill", d => activityColors[d.activity] || "gray")
         .attr("stroke", "none")
         .attr("opacity", 0)
-        .on("mouseover", (event,d) => {
+        .on("mouseover", (event, d) => {
           if (!interactiveActive) return;
           d3.select(event.currentTarget).classed("highlight", true);
           tooltip.style.opacity = 1;
           tooltip.innerHTML = `<strong>${d.activity}</strong>: ${d.value.toFixed(1)} (${d.measure})`;
         })
-        .on("mousemove", (event,d) => {
+        .on("mousemove", (event, d) => {
           const [mx, my] = d3.pointer(event, plotContainer);
-          tooltip.style.left = (mx+15)+"px"; tooltip.style.top = (my-10)+"px";
+          tooltip.style.left = (mx+15)+"px";
+          tooltip.style.top = (my-10)+"px";
         })
         .on("mouseout", () => tooltip.style.opacity = 0);
       additionalPoints = chartArea.selectAll(".point.additional");
 
       // ---------- REGRESSION LINES ----------
       const regressionGroups = {};
-      ["heart_rate", "breathing_rate"].forEach(measure => {
-        regressionGroups[measure] = chartArea.append("g")
-          .attr("class", `regression-lines ${measure}`)
+      ["heart_rate", "breathing_rate"].forEach(m => {
+        regressionGroups[m] = chartArea.append("g")
+          .attr("class", `regression-lines ${m}`)
           .style("display", "none");
       });
-      Object.entries(regressionData).forEach(([measure, activities]) => {
-        Object.entries(activities).forEach(([act, data]) => {
+      Object.entries(regressionData).forEach(([m, acts]) => {
+        Object.entries(acts).forEach(([act, data]) => {
           if (data.length === 0) return;
-          data.sort((a,b) => a.timestamp - b.timestamp);
+          data.sort((a, b) => a.timestamp - b.timestamp);
           const line = d3.line()
             .x(d => xScale(d.timestamp))
             .y(d => yScale(d.predicted))
             .defined(d => !isNaN(d.timestamp) && !isNaN(d.predicted));
-          regressionGroups[measure].append("path")
+          regressionGroups[m].append("path")
             .datum(data)
             .attr("class", `regression-line ${act}`)
             .attr("d", line)
@@ -286,7 +306,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .attr("stroke", activityColors[act])
             .attr("stroke-width", 2)
             .attr("opacity", 0.8);
-          regressionGroups[measure].append("path")
+          regressionGroups[m].append("path")
             .datum(data)
             .attr("class", `regression-overlay ${act}`)
             .attr("d", line)
@@ -300,27 +320,30 @@ document.addEventListener("DOMContentLoaded", () => {
             })
             .on("mousemove", (e) => {
               const [mx, my] = d3.pointer(e, plotContainer);
-              tooltip.style.left = (mx+15)+"px"; tooltip.style.top = (my-10)+"px";
+              tooltip.style.left = (mx+15)+"px";
+              tooltip.style.top = (my-10)+"px";
             })
             .on("mouseout", () => tooltip.style.opacity = 0);
         });
       });
       d3.select(".regression-checkbox").on("change", function() {
         const checked = this.checked;
-        if (checked) {
-          ["heart_rate","breathing_rate"].forEach(measure => {
-            regressionGroups[measure].style("display", "block");
-          });
-        } else {
-          ["heart_rate","breathing_rate"].forEach(measure => {
-            regressionGroups[measure].style("display", "none");
-          });
+        ["heart_rate", "breathing_rate"].forEach(m => {
+          regressionGroups[m].style("display", checked ? "block" : "none");
+        });
+      });
+
+      // ---------- Initialize Legend Labels with Colors ----------
+      d3.selectAll(".activity-checkbox").each(function() {
+        if (this.checked) {
+          this.parentElement.style.backgroundColor = activityColors[this.value];
+          this.parentElement.style.color = "#fff";
         }
       });
 
       // ---------- INTRO GAME & NARRATIVE ----------
       function updateIntroGame() {
-        updateNarrative(`Intro Game: For condition <strong>${conditions[currentCondIndex]}</strong>, click the heart as many times as you think represent its beats in 5 seconds. Time remaining: ${introTime} s.`);
+        updateNarrative(`Intro Game: For <strong>${conditions[currentCondIndex]}</strong>, click the heart. Time remaining: ${introTime} s, Count: ${introClickCount}`);
       }
       updateIntroGame();
       function startIntroTimer() {
@@ -347,12 +370,13 @@ document.addEventListener("DOMContentLoaded", () => {
               tooltip.innerHTML = `<strong>User estimated:</strong> ${predicted} BPM (${conditions[currentCondIndex]})`;
             }).on("mousemove", (e) => {
               const [mx, my] = d3.pointer(e, plotContainer);
-              tooltip.style.left = (mx+15)+"px"; tooltip.style.top = (my-10)+"px";
+              tooltip.style.left = (mx+15)+"px";
+              tooltip.style.top = (my-10)+"px";
             }).on("mouseout", () => tooltip.style.opacity = 0);
             currentCondIndex++;
             introClickCount = 0; introTime = 5; introTimerStarted = false;
             if (currentCondIndex < conditions.length)
-              updateNarrative(`Intro Game: For condition <strong>${conditions[currentCondIndex]}</strong>, click the heart. Time remaining: 5 s.`);
+              updateNarrative(`Intro Game: For <strong>${conditions[currentCondIndex]}</strong>, click the heart. Time remaining: 5 s, Count: 0`);
             else {
               introActive = false;
               updateNarrative("Intro game complete! Proceeding with visualization...");
@@ -365,6 +389,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // ---------- HEART BUTTON HANDLER ----------
       heartButton.addEventListener("click", () => {
+        // In intro mode, create a flying dot from offscreen to heart.
         pulseDot();
         if (introActive) {
           if (!introTimerStarted) startIntroTimer();
@@ -382,8 +407,10 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (interactiveActive) {
           addMorePoints();
         }
-        setTimeout(() => { clickEnabled = true; 
-          if (currentStep >= totalSteps) document.getElementById("skip-button").style.display = "none";
+        setTimeout(() => { 
+          clickEnabled = true; 
+          if (currentStep >= totalSteps)
+            document.getElementById("skip-button").style.display = "none";
         }, 1100);
       });
 
@@ -393,7 +420,8 @@ document.addEventListener("DOMContentLoaded", () => {
         switch (step) {
           case 1:
             initialPoints.transition().duration(1000)
-              .attr("fill", "gray").attr("opacity", 0.8)
+              .attr("fill", "gray")
+              .attr("opacity", 0.8)
               .on("end", () => updateNarrative(stepsText[step] + " <em>Click the heart to continue...</em>"));
             break;
           case 2:
@@ -519,51 +547,48 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // ---------- LEGEND & MEASURE INTERACTIONS ----------
       d3.selectAll(".activity-checkbox").on("change", function () {
-        if (interactiveActive) {
-          const act = this.value;
-          const lab = this.parentElement;
-          lab.style.backgroundColor = this.checked ? activityColors[act] : "";
-          lab.style.color = this.checked ? "#fff" : "";
-          initialPoints.attr("fill", d => {
+        if (!interactiveActive) return;
+        const act = this.value;
+        const lab = this.parentElement;
+        lab.style.backgroundColor = this.checked ? activityColors[act] : "";
+        lab.style.color = this.checked ? "#fff" : "";
+        initialPoints.attr("fill", d => {
+          const chk = document.querySelector(`.activity-checkbox[value="${d.activity}"]`);
+          return (chk && chk.checked) ? activityColors[d.activity] : "gray";
+        });
+        d3.selectAll(".point.additional")
+          .attr("fill", d => {
             const chk = document.querySelector(`.activity-checkbox[value="${d.activity}"]`);
             return (chk && chk.checked) ? activityColors[d.activity] : "gray";
           });
-          d3.selectAll(".point.additional")
-            .attr("fill", d => {
-              const chk = document.querySelector(`.activity-checkbox[value="${d.activity}"]`);
-              return (chk && chk.checked) ? activityColors[d.activity] : "gray";
-            });
-        }
       });
       d3.selectAll(".measure-checkbox").on("change", () => {
-        if (interactiveActive) {
-          initialPoints.attr("display", d => {
+        if (!interactiveActive) return;
+        initialPoints.attr("display", d => {
+          const chk = document.querySelector(`.measure-checkbox[value="${d.measure}"]`);
+          return (chk && chk.checked) ? null : "none";
+        });
+        d3.selectAll(".point.additional")
+          .attr("display", d => {
             const chk = document.querySelector(`.measure-checkbox[value="${d.measure}"]`);
             return (chk && chk.checked) ? null : "none";
           });
-          d3.selectAll(".point.additional")
-            .attr("display", d => {
-              const chk = document.querySelector(`.measure-checkbox[value="${d.measure}"]`);
-              return (chk && chk.checked) ? null : "none";
-            });
-          const hr = document.querySelector('.measure-checkbox[value="heart_rate"]').checked;
-          const br = document.querySelector('.measure-checkbox[value="breathing_rate"]').checked;
-          let newDomain;
-          if (hr && br) newDomain = [0,200];
-          else if (hr && !br) newDomain = [d3.extent(expanded.filter(d => d.measure==="heart_rate"), d => d.value)[0]-5,
-                                             d3.extent(expanded.filter(d => d.measure==="heart_rate"), d => d.value)[1]+5];
-          else if (!hr && br) newDomain = [d3.extent(expanded.filter(d => d.measure==="breathing_rate"), d => d.value)[0]-5,
-                                             d3.extent(expanded.filter(d => d.measure==="breathing_rate"), d => d.value)[1]+5];
-          else newDomain = yScale.domain();
-          yScale.domain(newDomain).nice();
-          updateYAxisLabel();
-          initialPoints.transition().duration(750)
-            .attr("transform", d => `translate(${xScale(d.timestamp)},${yScale(d.value)})`);
-          d3.selectAll(".point.additional").transition().duration(750)
-            .attr("transform", d => `translate(${xScale(d.timestamp)},${yScale(d.value)})`);
-          chartArea.select(".y-axis").transition().duration(750).call(yAxis);
-        }
+        const hr = document.querySelector('.measure-checkbox[value="heart_rate"]').checked;
+        const br = document.querySelector('.measure-checkbox[value="breathing_rate"]').checked;
+        let newDomain;
+        if (hr && br) newDomain = [0,200];
+        else if (hr && !br) newDomain = [d3.extent(expanded.filter(d => d.measure==="heart_rate"), d => d.value)[0]-5,
+                                            d3.extent(expanded.filter(d => d.measure==="heart_rate"), d => d.value)[1]+5];
+        else if (!hr && br) newDomain = [d3.extent(expanded.filter(d => d.measure==="breathing_rate"), d => d.value)[0]-5,
+                                            d3.extent(expanded.filter(d => d.measure==="breathing_rate"), d => d.value)[1]+5];
+        else newDomain = yScale.domain();
+        yScale.domain(newDomain).nice();
+        updateYAxisLabel();
+        initialPoints.transition().duration(750)
+          .attr("transform", d => `translate(${xScale(d.timestamp)},${yScale(d.value)})`);
+        d3.selectAll(".point.additional").transition().duration(750)
+          .attr("transform", d => `translate(${xScale(d.timestamp)},${yScale(d.value)})`);
+        chartArea.select(".y-axis").transition().duration(750).call(yAxis);
       });
-
     }).catch(error => console.error("Error loading data:", error));
 });
