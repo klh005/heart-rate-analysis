@@ -465,6 +465,8 @@ document.addEventListener("DOMContentLoaded", () => {
         pulseDot();
         if (introActive) {
           if (!introTimerStarted) startIntroTimer();
+          heartButton.classList.add("beat");
+          setTimeout(() => heartButton.classList.remove("beat"), 600);
           introClickCount++;
           updateIntroGame();
           return;
