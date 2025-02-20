@@ -281,3 +281,8 @@ footer {
 #heart-button.beat {
   animation: heartBeatShrink 0.6s;
 }
+
+.svg-container {
+  position: relative;
+  z-index: 99; /* Adjust this value as needed */
+}

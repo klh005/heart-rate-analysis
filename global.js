@@ -56,10 +56,13 @@ document.addEventListener("DOMContentLoaded", () => {
     "6": "Step 6: Interactive mode active."
   };
   function updateNarrative(text) {
+    if (conditions[currentCondIndex] == '2-Back') {
+      text = `Try to time your click to the beat of your heart if you were <strong>Thinking Deeply</strong>. Time remaining: ${introTime} s, Count: ${introClickCount}`
+    };
     narrativeContainer.innerHTML = `<p>${text}</p>`;
   }
   function updateIntroText() {
-    updateNarrative(`Intro Game: For <strong>${conditions[currentCondIndex]}</strong>, click the heart. Time remaining: ${introTime} s, Count: ${introClickCount}`);
+    updateNarrative(`Try to time your click to the beat of your heart if you were <strong>${conditions[currentCondIndex]}</strong>. Time remaining: ${introTime} s, Count: ${introClickCount}`);
   }
   updateIntroText();
 
@@ -76,22 +79,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- SIMPLE PULSE ANIMATION (Flying Dot) ----------
   function pulseDot() {
+    let tempOpacity = 1;
     if (!svg) return;
+    if (currentCondIndex > 2) {
+      tempOpacity = 0;
+    }
     // Start from a random x off the top (y = -50)
     const startX = Math.random() * plotContainer.clientWidth;
-    const startY = -50;
+    const startY = -200;
     const hb = heartButton.getBoundingClientRect();
     const svgRect = svg.node().getBoundingClientRect();
-    const targetX = hb.left + hb.width / 2 - svgRect.left;
-    const targetY = hb.top + hb.height / 2 - svgRect.top;
+    const targetX = hb.left + (hb.width-165) / 2 - svgRect.left;
+    const targetY = hb.top + hb.height / 2 - (svgRect.top+150);
     const dot = chartArea.append("circle")
       .attr("cx", startX)
       .attr("cy", startY)
       .attr("r", 6)
-      .attr("fill", "#fff")
-      .attr("opacity", 1);
+      .attr("fill", activityColors[conditions[currentCondIndex]])
+      .attr("z-index", 10000)
+      .attr("opacity", tempOpacity);
     dot.transition()
-      .duration(800)
+      .duration(700)
       .attr("cx", targetX)
       .attr("cy", targetY)
       .transition()
@@ -135,10 +143,10 @@ document.addEventListener("DOMContentLoaded", () => {
         introTime = 5;
         introTimerStarted = false;
         if (currentCondIndex < conditions.length)
-          updateNarrative(`Intro Game: For <strong>${conditions[currentCondIndex]}</strong>, click the heart. Time remaining: 5 s, Count: 0`);
+          updateNarrative(`Try to time your click to the beat of your heart if you were <strong>${conditions[currentCondIndex]}</strong>. Time remaining: 5 s, Count: 0`);
         else {
           introActive = false;
-          updateNarrative("Intro game complete! Proceeding with visualization...");
+          updateNarrative("Look above and compare your predictions! Proceeding with visualization...");
           initialPoints.transition().duration(500).attr("opacity", 0.8);
           setTimeout(() => updateStep(1), 1000);
         }
@@ -405,7 +413,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // ---------- INTRO GAME & NARRATIVE ----------
       function updateIntroGame() {
-        updateNarrative(`Intro Game: For <strong>${conditions[currentCondIndex]}</strong>, click the heart. Time remaining: ${introTime} s, Count: ${introClickCount}`);
+        updateNarrative(`Try to time your click to the beat of your heart if you were <strong>${conditions[currentCondIndex]}</strong>. Time remaining: ${introTime} s, Count: ${introClickCount}`);
       }
       updateIntroGame();
       function startIntroTimer() {
@@ -440,10 +448,10 @@ document.addEventListener("DOMContentLoaded", () => {
             currentCondIndex++;
             introClickCount = 0; introTime = 5; introTimerStarted = false;
             if (currentCondIndex < conditions.length)
-              updateNarrative(`Intro Game: For <strong>${conditions[currentCondIndex]}</strong>, click the heart. Time remaining: 5 s, Count: 0`);
+              updateNarrative(`Try to time your click to the beat of your heart if you were <strong>${conditions[currentCondIndex]}</strong>. Time remaining: 5 s, Count: 0`);
             else {
               introActive = false;
-              updateNarrative("Intro game complete! Proceeding with visualization...");
+              updateNarrative("Look above and compare your predictions! Proceeding with visualization...");
               initialPoints.transition().duration(500).attr("opacity", 0.8);
               setTimeout(() => updateStep(1), 1000);
             }
